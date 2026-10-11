@@ -1,0 +1,4083 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Café Aurora — Protótipo de Playtest</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/basecoat-css@1.0.2/dist/basecoat.cdn.min.css">
+  <style>
+/* Skip artifact shell — fixed styles served beside every artifact.
+   Complements basecoat; artifacts override --accent for their own identity. */
+:root {
+  color-scheme: light dark;
+  --accent: #2563eb;
+  --accent-contrast: #ffffff;
+  --accent-text: color-mix(in srgb, var(--accent) 72%, #000);
+  --bg: #f8f9fb;
+  --surface: #ffffff;
+  --text: #14171f;
+  --text-muted: #5b6472;
+  --border: rgba(20, 23, 31, 0.10);
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(20, 23, 31, 0.08);
+  --space: 16px;
+}
+/* Theme resolution. Without data-theme the viewer's system preference decides,
+   as it always did. With it, the artifact's own choice wins in BOTH directions:
+   a page that hardcodes one palette must not be handed the opposite set of
+   tokens by the machine it happens to be opened on. The dark values appear
+   twice because a media query cannot be folded into a selector list.
+   The attribute sits inside :where() so these blocks keep the specificity of a
+   bare :root — the page's own <style> is linked after this file and must go on
+   overriding any token it wants, exactly as it could before. */
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    --accent-text: color-mix(in srgb, var(--accent) 78%, #fff);
+    --bg: #101318;
+    --surface: #181c23;
+    --text: #eef1f6;
+    --text-muted: #9aa4b2;
+    --border: rgba(238, 241, 246, 0.12);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+}
+:root:where([data-theme="dark"]) {
+  color-scheme: dark;
+  --accent-text: color-mix(in srgb, var(--accent) 78%, #fff);
+  --bg: #101318;
+  --surface: #181c23;
+  --text: #eef1f6;
+  --text-muted: #9aa4b2;
+  --border: rgba(238, 241, 246, 0.12);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+:root:where([data-theme="light"]) { color-scheme: light; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; display: block; }
+
+.shell-container { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+.shell-section { padding: calc(var(--space) * 2) 0; }
+.shell-grid { display: grid; gap: var(--space); grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.shell-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: var(--space); }
+.shell-footer { padding: 24px 0 40px; color: var(--text-muted); font-size: 13px; }
+
+.shell-hero { padding: calc(var(--space) * 3) 0 calc(var(--space) * 2); }
+.shell-hero h1 { font-size: clamp(26px, 4vw, 40px); line-height: 1.15; margin: 0 0 10px; text-wrap: balance; }
+.shell-hero p { color: var(--text-muted); max-width: 60ch; margin: 0; }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--space);
+}
+
+.kpi { display: flex; flex-direction: column; gap: 4px; }
+.kpi .kpi-value { font-size: 28px; font-weight: 650; line-height: 1.1; }
+.kpi .kpi-label { font-size: 13px; color: var(--text-muted); }
+.kpi .kpi-delta { font-size: 12.5px; font-weight: 600; }
+.kpi .kpi-delta.up { color: #0a8f3c; }
+.kpi .kpi-delta.down { color: #cf3131; }
+
+table.shell-table { border-collapse: collapse; width: 100%; font-size: 14px; }
+table.shell-table th {
+  text-align: left; font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-muted); font-weight: 600;
+}
+table.shell-table th, table.shell-table td { padding: 9px 12px 9px 0; border-bottom: 1px solid var(--border); }
+table.shell-table td.num, table.shell-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+
+.chart-box { width: 100%; min-height: 220px; }
+.chart-box svg { width: 100%; height: auto; display: block; }
+
+.muted { color: var(--text-muted); }
+.accent { color: var(--accent-text); }
+.shell-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent-text);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .shell-fade { animation: shell-fade 400ms ease both; }
+  @keyframes shell-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+}
+
+</style>
+  
+  <style>
+    :root {
+      --accent: #b25329;
+      --coffee-bean: #4a2711;
+      --coffee-cream: #fbf6ee;
+      --coffee-warm: #f3e8d9;
+      --coffee-amber: #d97736;
+      --card-border: #e3d2be;
+      --radius: 12px;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background-color: var(--coffee-cream);
+      color: #2b1810;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background-color 0.5s ease;
+    }
+
+    /* Rush Hour visual shifts */
+    body.rush-warning {
+      background-color: #faede0;
+    }
+
+    body.rush-active {
+      background-color: #fce1cb;
+    }
+
+    body.rush-active .counter-card {
+      border-color: #e25822;
+      box-shadow: 0 0 18px rgba(226, 88, 34, 0.25);
+    }
+
+    .aurora-header {
+      background: linear-gradient(135deg, #3d1f0e, #693418);
+      color: #fffaf5;
+      padding: 1rem 1.25rem;
+      box-shadow: 0 4px 12px rgba(45, 20, 10, 0.15);
+    }
+
+    .aurora-header h1 {
+      margin: 0;
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .badge-tag {
+      font-size: 0.7rem;
+      font-weight: 700;
+      background: #f08c4a;
+      color: #2e1204;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* HUD Bar */
+    .hud-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .hud-card {
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 0.65rem 0.85rem;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 2px 5px rgba(60, 30, 15, 0.05);
+    }
+
+    .hud-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+      color: #7c5a45;
+      margin-bottom: 0.2rem;
+    }
+
+    .hud-val {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #381a0b;
+      line-height: 1.1;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .hud-timer {
+      color: #a73c11;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Main play layout */
+    .game-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+
+    @media (min-width: 860px) {
+      .game-layout {
+        grid-template-columns: 1.1fr 1fr;
+      }
+    }
+
+    /* Counter / Customer Area */
+    .counter-card {
+      background: #ffffff;
+      border: 2px solid var(--card-border);
+      border-radius: 14px;
+      padding: 1.25rem;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 280px;
+      box-shadow: 0 4px 14px rgba(70, 35, 15, 0.06);
+    }
+
+    .customer-stage {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      margin: 1rem 0;
+    }
+
+    .customer-avatar {
+      width: 84px;
+      height: 84px;
+      border-radius: 50%;
+      background: var(--coffee-warm);
+      border: 3px solid var(--coffee-amber);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.75rem;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+      flex-shrink: 0;
+      transition: transform 0.2s ease;
+    }
+
+    .order-bubble {
+      background: #fff8f0;
+      border: 2px solid #e0c2a2;
+      border-radius: 12px;
+      padding: 0.85rem 1rem;
+      flex-grow: 1;
+      position: relative;
+    }
+
+    .order-bubble::before {
+      content: '';
+      position: absolute;
+      left: -10px;
+      top: 50%;
+      transform: translateY(-50%);
+      border-width: 8px 10px 8px 0;
+      border-style: solid;
+      border-color: transparent #e0c2a2 transparent transparent;
+    }
+
+    .order-item-name {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #3d1b09;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .recipe-hint {
+      font-size: 0.78rem;
+      color: #795743;
+      margin-top: 0.25rem;
+      font-weight: 600;
+    }
+
+    /* Patience Bar */
+    .patience-wrap {
+      margin-top: 0.5rem;
+    }
+
+    .patience-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+      color: #5c3e2e;
+    }
+
+    .patience-bar-bg {
+      height: 14px;
+      background: #ecd9c7;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid #d4bea7;
+    }
+
+    .patience-bar-fill {
+      height: 100%;
+      width: 100%;
+      background: #189e47;
+      border-radius: 999px;
+      transition: width 0.15s linear, background-color 0.3s ease;
+    }
+
+    /* Kitchen / Assembly Area */
+    .kitchen-card {
+      background: #ffffff;
+      border: 2px solid var(--card-border);
+      border-radius: 14px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      box-shadow: 0 4px 14px rgba(70, 35, 15, 0.06);
+    }
+
+    .assembly-tray {
+      background: #faf4ec;
+      border: 2px dashed #ceb195;
+      border-radius: 10px;
+      padding: 0.85rem;
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .ingredient-chip {
+      background: #fff;
+      border: 2px solid #a8623d;
+      border-radius: 8px;
+      padding: 0.4rem 0.75rem;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #4a210f;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.6); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* Big interactive buttons */
+    .btn-action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .btn-ingredient {
+      background: #fff;
+      border: 2px solid #8e4822;
+      color: #4a220e;
+      border-radius: 10px;
+      padding: 0.85rem 0.5rem;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.2rem;
+      transition: all 0.15s ease;
+      touch-action: manipulation;
+    }
+
+    .btn-ingredient:hover:not(:disabled) {
+      background: #faece1;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(142, 72, 34, 0.18);
+    }
+
+    .btn-ingredient:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .btn-ingredient:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      border-color: #c9b4a4;
+    }
+
+    .btn-serve {
+      background: linear-gradient(135deg, #c45a27, #98380d);
+      color: #ffffff !important;
+      border: none;
+      border-radius: 10px;
+      padding: 1rem;
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(180, 75, 25, 0.35);
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      touch-action: manipulation;
+    }
+
+    .btn-serve:hover:not(:disabled) {
+      background: linear-gradient(135deg, #d36531, #a94112);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(180, 75, 25, 0.45);
+    }
+
+    .btn-serve:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .btn-serve:disabled {
+      background: #a98f80;
+      opacity: 0.7;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-discard {
+      background: #fdf5f0;
+      border: 1px solid #cfae9d;
+      color: #7a462b;
+      border-radius: 8px;
+      padding: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .btn-discard:hover:not(:disabled) {
+      background: #fae4d7;
+      color: #552711;
+    }
+
+    /* Multi-order Counter Grid */
+    .counter-slots-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 0.75rem;
+      margin: 0.85rem 0;
+    }
+
+    .counter-order-card {
+      background: #fff8f0;
+      border: 2px solid #e0c2a2;
+      border-radius: 12px;
+      padding: 0.75rem;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .counter-order-card:hover {
+      border-color: #b25329;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(70, 35, 15, 0.1);
+    }
+
+    .counter-order-card.selected {
+      border: 2px solid #b25329;
+      background: #fff5eb;
+      box-shadow: 0 0 0 3px rgba(178, 83, 41, 0.3), 0 4px 12px rgba(178, 83, 41, 0.15);
+    }
+
+    .counter-order-card.selected::before {
+      content: '🎯 SELECIONADO';
+      position: absolute;
+      top: -10px;
+      right: 12px;
+      background: #b25329;
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 999px;
+      letter-spacing: 0.04em;
+    }
+
+    .counter-slot-empty {
+      border: 2px dashed #d8c2ad;
+      background: #faf6f0;
+      border-radius: 12px;
+      padding: 1.25rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #9c8270;
+      font-size: 0.82rem;
+      font-style: italic;
+      min-height: 140px;
+    }
+
+    /* 4 Tables Area */
+    .tables-section {
+      background: #ffffff;
+      border: 2px solid var(--card-border);
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      margin-top: 1.25rem;
+      box-shadow: 0 4px 14px rgba(70, 35, 15, 0.06);
+    }
+
+    .tables-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 0.85rem;
+    }
+
+    .table-card {
+      background: #faf5ee;
+      border: 1.5px solid #dfcbb8;
+      border-radius: 12px;
+      padding: 0.85rem 0.65rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      transition: all 0.25s ease;
+    }
+
+    .table-card.occupied {
+      background: #fffcf7;
+      border-color: #d97736;
+      box-shadow: 0 4px 12px rgba(217, 119, 54, 0.12);
+    }
+
+    .table-visual {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #ecd7c1 0%, #c49d79 100%);
+      border: 3px solid #854f2c;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      position: relative;
+      margin: 0.35rem 0;
+    }
+
+    .table-visual::before,
+    .table-visual::after {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 28px;
+      background: #9c633a;
+      border-radius: 6px;
+    }
+
+    .table-visual::before {
+      left: -17px;
+    }
+
+    .table-visual::after {
+      right: -17px;
+    }
+
+    .table-floating-order {
+      width: 100%;
+      background: #fff;
+      border: 1.5px solid #d99158;
+      border-radius: 8px;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.06);
+    }
+
+    /* Results Panel - Últimos Pedidos */
+    .results-panel-box {
+      margin-top: 1.25rem;
+      background: #ffffff;
+      border: 2px solid var(--card-border);
+      border-radius: 14px;
+      padding: 1.1rem 1.25rem;
+      box-shadow: 0 4px 14px rgba(70, 35, 15, 0.06);
+    }
+
+    .recent-results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .result-item-card {
+      border-radius: 12px;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      animation: resultSlideIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      position: relative;
+    }
+
+    .result-item-card.ok {
+      background: #edf8f0;
+      border: 2px solid #28a745;
+      box-shadow: 0 0 14px rgba(40, 167, 69, 0.35);
+    }
+
+    .result-item-card.error,
+    .result-item-card.lost {
+      background: #fdf1f1;
+      border: 2px solid #dc3545;
+      box-shadow: 0 0 14px rgba(220, 53, 69, 0.35);
+    }
+
+    .result-icon-big {
+      font-size: 2.2rem;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .result-badge-text {
+      font-size: 1.05rem;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .result-item-card.ok .result-badge-text {
+      color: #155724;
+    }
+
+    .result-item-card.error .result-badge-text,
+    .result-item-card.lost .result-badge-text {
+      color: #721c24;
+    }
+
+    .result-value-sub {
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-top: 0.15rem;
+    }
+
+    .result-item-card.ok .result-value-sub {
+      color: #218838;
+    }
+
+    .result-item-card.error .result-value-sub,
+    .result-item-card.lost .result-value-sub {
+      color: #c82333;
+    }
+
+    @keyframes resultSlideIn {
+      0% {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.92);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Machine Brew Bar */
+    .machine-status-box {
+      border: 1px solid #dfc7b0;
+      background: #fdfbf7;
+      border-radius: 8px;
+      padding: 0.65rem 0.85rem;
+    }
+
+    .machine-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+      color: #5c3824;
+    }
+
+    .brew-bar-bg {
+      height: 10px;
+      background: #ebe0d3;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .brew-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #d97736, #4a2711);
+      border-radius: 999px;
+      transition: width 0.1s linear;
+    }
+
+    /* Feedback Banner */
+    .feedback-banner {
+      min-height: 40px;
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: opacity 0.3s ease;
+    }
+
+    .feedback-default {
+      background: #f5ece2;
+      color: #634330;
+      border: 1px solid #ddccbc;
+    }
+
+    .feedback-success {
+      background: #e6f7ec;
+      color: #0b6628;
+      border: 1px solid #9ad6af;
+    }
+
+    .feedback-error {
+      background: #fdeeee;
+      color: #9c1b1b;
+      border: 1px solid #f2a8a8;
+    }
+
+    /* Event log */
+    .log-container {
+      margin-top: 1.25rem;
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+    }
+
+    .log-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 110px;
+      overflow-y: auto;
+      font-size: 0.82rem;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 0.3rem;
+    }
+
+    .log-list li {
+      padding: 0.25rem 0.4rem;
+      border-radius: 4px;
+      background: #faf6f0;
+      color: #4a2c1b;
+      border-left: 3px solid #8e4822;
+    }
+
+    /* End-of-Day Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(25, 12, 6, 0.75);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 1rem;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-box {
+      background: #fff;
+      border-radius: 16px;
+      max-width: 480px;
+      width: 100%;
+      padding: 1.75rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      border: 2px solid #d2946c;
+      animation: modalPop 0.25s ease-out;
+    }
+
+    @keyframes modalPop {
+      0% { transform: scale(0.9); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #3b1909;
+      margin-top: 0;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin: 1.25rem 0;
+    }
+
+    .summary-item {
+      background: #faf4ed;
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: 1px solid #e8d7c5;
+    }
+
+    .summary-num {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #3a1c0d;
+    }
+
+    .summary-label {
+      font-size: 0.75rem;
+      color: #795b4a;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* Roteiro Playtest (Accordion) */
+    .playtest-box {
+      margin-top: 2rem;
+      margin-bottom: 2rem;
+      background: #fbf5ed;
+      border: 1px solid #dcc2aa;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .playtest-box details summary {
+      padding: 0.85rem 1.25rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: #552711;
+      background: #f4e7d7;
+      user-select: none;
+    }
+
+    .playtest-box details summary:hover {
+      background: #eedbc7;
+    }
+
+    .playtest-content {
+      padding: 1rem 1.25rem;
+      font-size: 0.88rem;
+      color: #402315;
+      line-height: 1.5;
+    }
+
+    .playtest-content ol {
+      padding-left: 1.25rem;
+      margin: 0.5rem 0 0.75rem 0;
+    }
+
+    .playtest-content li {
+      margin-bottom: 0.5rem;
+    }
+
+    /* Tutorial Banner & Highlights */
+    .tutorial-banner {
+      background: #fff3d6;
+      border: 2px solid #e28a2b;
+      color: #5c2c06;
+      border-radius: 10px;
+      padding: 0.65rem 1rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      animation: pulseGlow 1.8s infinite alternate;
+    }
+
+    .tutorial-text {
+      font-size: 1.1rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .tutorial-skip-btn {
+      background: transparent;
+      border: 1px dashed #aa6820;
+      color: #79430c;
+      border-radius: 6px;
+      padding: 0.3rem 0.6rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .tutorial-skip-btn:hover {
+      background: #fae4c0;
+    }
+
+    .guide-pulse {
+      position: relative;
+      animation: buttonHighlight 1s infinite alternate !important;
+      outline: 3px solid #e05d15 !important;
+      outline-offset: 3px !important;
+      z-index: 5;
+    }
+
+    .guide-pulse::after {
+      content: '👉 CLIQUE AQUI';
+      position: absolute;
+      top: -26px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #e05d15;
+      color: #fff;
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 999px;
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    @keyframes buttonHighlight {
+      0% { box-shadow: 0 0 0 0 rgba(224, 93, 21, 0.7); transform: scale(1); }
+      100% { box-shadow: 0 0 0 10px rgba(224, 93, 21, 0); transform: scale(1.03); }
+    }
+
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 4px rgba(226, 138, 43, 0.3); }
+      100% { box-shadow: 0 0 12px rgba(226, 138, 43, 0.6); }
+    }
+
+    /* Prep-ahead Tray */
+    .prep-shelf {
+      background: #fdf7ee;
+      border: 1px solid #e2cbaf;
+      border-radius: 10px;
+      padding: 0.6rem 0.85rem;
+      margin-top: 0.75rem;
+    }
+    .prep-shelf-header {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #7a4d2f;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.4rem;
+    }
+    .prep-slots {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .prep-item-btn {
+      flex: 1;
+      background: #fff;
+      border: 1.5px solid #d99158;
+      border-radius: 8px;
+      padding: 0.45rem 0.5rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #4b230f;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      transition: all 0.15s ease;
+    }
+    .prep-item-btn:hover:not(:disabled) {
+      background: #ffeedf;
+      transform: translateY(-1px);
+    }
+    .prep-item-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      border-color: #d1b8a3;
+    }
+    .prep-slot-empty {
+      flex: 1;
+      border: 1.5px dashed #ceb49b;
+      border-radius: 8px;
+      padding: 0.45rem;
+      font-size: 0.75rem;
+      color: #9f8470;
+      text-align: center;
+      font-style: italic;
+    }
+
+    /* Recipe mini tags in customer order */
+    .order-ingredients-mini {
+      display: flex;
+      gap: 0.3rem;
+      margin-top: 0.35rem;
+      flex-wrap: wrap;
+    }
+    .mini-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      background: #f1dfcf;
+      color: #4e2713;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      border: 1px solid #ddc1a6;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.2rem;
+    }
+
+    /* Prep Opening Shop Modal */
+    .shop-prep-card {
+      background: #fbf5ee;
+      border: 1px solid #debda0;
+      border-radius: 10px;
+      padding: 0.85rem;
+      margin-bottom: 0.85rem;
+    }
+    .shop-item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.45rem 0;
+      border-bottom: 1px dashed #e3cfbe;
+    }
+    .shop-item-row:last-child {
+      border-bottom: none;
+    }
+    .stepper-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid #a35d33;
+      background: #fff;
+      font-weight: 800;
+      font-size: 1rem;
+      color: #552711;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+    }
+    .stepper-btn:hover:not(:disabled) {
+      background: #fbeee1;
+    }
+    .stepper-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    /* Tutorial 1-sentence Tooltip */
+    .tutorial-tooltip {
+      position: absolute;
+      z-index: 1200;
+      max-width: 240px;
+      padding: 0.55rem 0.8rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      line-height: 1.3;
+      color: #ffffff;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+      pointer-events: none;
+      animation: tooltipPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .tutorial-tooltip::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 6px 6px 0 6px;
+      border-style: solid;
+      border-color: inherit;
+    }
+
+    @keyframes tooltipPop {
+      0% { opacity: 0; transform: translateY(6px) scale(0.95); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Rush Notice Banners */
+    .rush-alert-banner {
+      position: fixed;
+      top: 1.25rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2000;
+      padding: 0.75rem 1.75rem;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 1.15rem;
+      letter-spacing: 0.02em;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      animation: rushPop 0.3s ease-out;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      pointer-events: none;
+    }
+
+    .rush-incoming-bg {
+      background: linear-gradient(135deg, #d9480f, #f76707);
+      color: #fff;
+      border: 2px solid #ffd8a8;
+    }
+
+    .rush-ended-bg {
+      background: linear-gradient(135deg, #2b8a3e, #40c057);
+      color: #fff;
+      border: 2px solid #b2f2bb;
+    }
+
+    @keyframes rushPop {
+      0% { transform: translate(-50%, -20px) scale(0.9); opacity: 0; }
+      100% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+    }
+
+    /* Non-intrusive Unlock Recipe Toast */
+    .unlock-toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 2000;
+      background: #2b1810;
+      color: #fff8f0;
+      border: 2px solid #e08328;
+      border-radius: 12px;
+      padding: 0.85rem 1.25rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+      animation: toastSlideIn 0.3s ease-out;
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    @keyframes toastSlideIn {
+      0% { transform: translateY(20px); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Tabs in Cookbook */
+    .tab-nav {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 2px solid #ebd9c8;
+      margin-bottom: 1rem;
+      padding-bottom: 0.25rem;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      font-weight: 800;
+      font-size: 0.92rem;
+      padding: 0.45rem 0.85rem;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      color: #7d5943;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn.active {
+      color: #3b1a0b;
+      background: #faede0;
+      border-bottom: 3px solid #b25329;
+    }
+
+    /* Run Report Table */
+    .report-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      margin-top: 0.75rem;
+    }
+
+    .report-table th, .report-table td {
+      border: 1px solid #e3d2be;
+      padding: 0.4rem 0.5rem;
+      text-align: center;
+    }
+
+    .report-table th {
+      background: #f7ede2;
+      color: #4a220e;
+      font-weight: 700;
+    }
+
+    .report-table tr:nth-child(even) td {
+      background: #fdfbf7;
+    }
+
+    /* DevLog Drawer (Abre sem pausar o jogo) */
+    .devlog-drawer {
+      position: fixed;
+      top: 0;
+      right: -420px;
+      width: 390px;
+      max-width: 92vw;
+      height: 100vh;
+      background: #ffffff;
+      border-left: 2px solid var(--card-border);
+      box-shadow: -4px 0 24px rgba(45, 20, 10, 0.22);
+      z-index: 1500;
+      display: flex;
+      flex-direction: column;
+      transition: right 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .devlog-drawer.open {
+      right: 0;
+    }
+
+    .devlog-header {
+      padding: 0.9rem 1.1rem;
+      background: #fbf5ee;
+      border-bottom: 1px solid #e3d2be;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .devlog-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.75rem 0.9rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.76rem;
+      line-height: 1.45;
+      background: #fdfbf8;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .devlog-row {
+      padding: 0.35rem 0.5rem;
+      border-radius: 6px;
+      background: #faf4ed;
+      border-left: 3px solid #b25329;
+      color: #3b1909;
+      word-break: break-word;
+    }
+
+    .devlog-row.divider {
+      background: #fae4cf;
+      border-left: 4px solid #6b3517;
+      font-weight: 800;
+      color: #4a210f;
+      text-align: center;
+      margin: 0.45rem 0 0.2rem 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Title Header -->
+  <header class="aurora-header">
+    <div class="shell-container" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+      <h1>
+        ☕ Café Aurora
+        <span class="badge-tag">Playtest v1.1</span>
+      </h1>
+      <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+        <button id="btn-open-devlog" class="btn" style="background:#fae5d0; color:#5d240a; font-weight:800; border:1px solid #d99158; padding:0.35rem 0.75rem; border-radius:8px; cursor:pointer;" type="button" title="Ver DevLog com cálculos em tempo real">
+          📜 DevLog
+        </button>
+        <button id="btn-open-cookbook" class="btn" style="background:#fff3e3; color:#4a210f; font-weight:800; border:none; padding:0.35rem 0.75rem; border-radius:8px; cursor:pointer;" type="button" title="Livro de Receitas & Conquistas">
+          📖 Livro & Conquistas (?)
+        </button>
+        <button id="btn-open-report" class="btn" style="background:#f4e4d4; color:#5b2a12; font-weight:700; border:none; padding:0.35rem 0.75rem; border-radius:8px; cursor:pointer;" type="button" title="Ver Relatório e Estatísticas da Run">
+          📊 Relatório
+        </button>
+        <span style="font-size:0.85rem; opacity:0.9; font-weight:600;">Gerenciador de Cafeteria</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell-container" style="margin-top: 1rem; flex-grow: 1;">
+
+    <!-- Tutorial Step Banner (visible on Day 1) -->
+    <div id="tutorial-banner" class="tutorial-banner" style="display:none;">
+      <div class="tutorial-text">
+        <span>💡</span>
+        <span id="tutorial-msg">Clique no café</span>
+      </div>
+      <button id="btn-skip-tutorial" class="tutorial-skip-btn" type="button">Pular tutorial (ir para Dia 2)</button>
+    </div>
+
+    <!-- HUD Overview -->
+    <div class="hud-grid">
+      <div class="hud-card">
+        <span class="hud-label">Expediente</span>
+        <span class="hud-val" id="hud-day">Dia 1</span>
+      </div>
+      <div class="hud-card">
+        <span class="hud-label" id="hud-timer-label">Tempo Restante</span>
+        <span class="hud-val hud-timer" id="hud-timer">60s</span>
+      </div>
+      <div class="hud-card">
+        <span class="hud-label">Caixa (R$)</span>
+        <span class="hud-val" style="color:#1d7031;" id="hud-money">R$ 30</span>
+      </div>
+      <div class="hud-card">
+        <span class="hud-label">Reputação</span>
+        <span class="hud-val" style="color:#b25329;" id="hud-rep">★ 50/100</span>
+      </div>
+      <div class="hud-card">
+        <span class="hud-label">Estoque Café</span>
+        <span class="hud-val" id="hud-stock-coffee">🫘 6 un</span>
+      </div>
+      <div class="hud-card">
+        <span class="hud-label">Estoque Leite</span>
+        <span class="hud-val" id="hud-stock-milk">🥛 4 un</span>
+      </div>
+      <div class="hud-card" id="hud-card-choco" style="display:none;">
+        <span class="hud-label">Estoque Choc.</span>
+        <span class="hud-val" id="hud-stock-choco">🍫 0 un</span>
+      </div>
+      <div class="hud-card" id="hud-card-ice" style="display:none;">
+        <span class="hud-label">Estoque Gelo</span>
+        <span class="hud-val" id="hud-stock-ice">🧊 0 un</span>
+      </div>
+    </div>
+
+    <!-- Feedback Notice -->
+    <div id="feedback-bar" class="feedback-banner feedback-default" style="margin-bottom: 1rem;">
+      <span id="feedback-icon">👋</span>
+      <span id="feedback-text">Prepare os cafés e atenda os clientes antes da paciência esgotar!</span>
+    </div>
+
+    <!-- Active Stage -->
+    <div class="game-layout">
+
+      <!-- Left Column: Front Counter (Up to 3 simultaneous orders) -->
+      <section class="counter-card" aria-label="Balcão de Atendimento">
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #ebd7c4; padding-bottom:0.5rem; flex-wrap:wrap; gap:0.4rem;">
+            <div>
+              <strong style="font-size:0.95rem; color:#4a220e;">Balcão de Pedidos</strong>
+              <span id="counter-count-pill" class="shell-badge" style="background:#fae9da; color:#6b3517; font-weight:700; margin-left:0.35rem;">0/3 no balcão</span>
+            </div>
+            <span id="rush-badge-pill" class="shell-badge" style="display:none; background:#ff4500; color:#fff; font-weight:800; animation:pulseGlow 1s infinite alternate;">🔥 HORA DO RUSH (Gorjeta 2x)</span>
+          </div>
+
+          <div style="font-size:0.75rem; color:#78543f; margin-top:0.4rem;">
+            💡 Clique no pedido desejado para selecioná-lo (ou o mais impaciente será atendido automaticamente).
+          </div>
+
+          <!-- 3 Simultaneous Counter Orders -->
+          <div class="counter-slots-grid" id="counter-orders-container">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Prep-ahead Delivery Shelf -->
+        <div class="prep-shelf" id="prep-shelf-box">
+          <div class="prep-shelf-header">
+            <span>⚡ Bandeja de Bebidas Pré-prontas (Entrega Direta)</span>
+            <span id="prep-shelf-count">0/3</span>
+          </div>
+          <div class="prep-slots" id="prep-shelf-slots">
+            <div class="prep-slot-empty">Nenhuma pré-pronta</div>
+          </div>
+          <!-- Aviso visual quando bandeja estiver cheia -->
+          <div id="prep-shelf-warning" style="display:none; margin-top:0.45rem; padding:0.35rem 0.6rem; background:#fee2e2; border:1.5px solid #ef4444; border-radius:6px; color:#b91c1c; font-size:0.75rem; font-weight:800; text-align:center; animation:pulseGlow 1.2s infinite alternate;">
+            ⚠️ Bandeja cheia (3/3) — pare de produzir!
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Kitchen / Machine & Assembly -->
+      <section class="kitchen-card" aria-label="Bancada de Preparo">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <strong style="font-size:0.95rem; color:#4a220e;">Bancada & Cafeteira (2s)</strong>
+          <span style="font-size:0.78rem; color:#78543f; font-weight:600;">Máx: 3 ingredientes</span>
+        </div>
+
+        <!-- Assembly Tray -->
+        <div style="display:flex; flex-direction:column; gap:0.35rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; font-weight:600; color:#633c27;">
+            <span>Itens na xícara:</span>
+            <button class="btn-discard" id="btn-discard" type="button" title="Devolve ingredientes ao estoque">↺ Descartar montagem</button>
+          </div>
+          <div class="assembly-tray" id="assembly-tray">
+            <span style="color:#9e8270; font-size:0.85rem; font-style:italic;" id="tray-empty-hint">Nenhum ingrediente adicionado</span>
+          </div>
+        </div>
+
+        <!-- Ingredient Action Buttons -->
+        <div class="btn-action-grid" id="ingredients-action-grid">
+          <button class="btn-ingredient" id="btn-add-coffee" type="button">
+            <span style="font-size:1.35rem;">🫘</span>
+            <span>+ Café (R$2)</span>
+            <small style="font-size:0.72rem; color:#694838;" id="btn-stock-coffee-hint">Estoque: 6</small>
+          </button>
+          <button class="btn-ingredient" id="btn-add-milk" type="button">
+            <span style="font-size:1.35rem;">🥛</span>
+            <span>+ Leite (R$3)</span>
+            <small style="font-size:0.72rem; color:#694838;" id="btn-stock-milk-hint">Estoque: 4</small>
+          </button>
+          <button class="btn-ingredient" id="btn-add-choco" style="display:none;" type="button">
+            <span style="font-size:1.35rem;">🍫</span>
+            <span>+ Chocolate (R$4)</span>
+            <small style="font-size:0.72rem; color:#694838;" id="btn-stock-choco-hint">Estoque: 0</small>
+          </button>
+          <button class="btn-ingredient" id="btn-add-ice" style="display:none;" type="button">
+            <span style="font-size:1.35rem;">🧊</span>
+            <span>+ Gelo (R$1)</span>
+            <small style="font-size:0.72rem; color:#694838;" id="btn-stock-ice-hint">Estoque: 0</small>
+          </button>
+        </div>
+
+        <!-- Machine Brew Status -->
+        <div class="machine-status-box">
+          <div class="machine-header">
+            <div style="display:flex; align-items:center; gap:0.35rem;">
+              <span>Cafeteira Express (2s)</span>
+              <span id="machine-tray-warning" style="display:none; font-size:0.7rem; background:#dc2626; color:#fff; padding:1px 6px; border-radius:4px; font-weight:800;">Bandeja cheia!</span>
+            </div>
+            <span id="machine-status-text">Pronta</span>
+          </div>
+          <div class="brew-bar-bg">
+            <div class="brew-bar-fill" id="brew-progress-bar"></div>
+          </div>
+        </div>
+
+        <!-- Big Serve Button -->
+        <button class="btn-serve" id="btn-serve" type="button">
+          <span>🛎️</span>
+          <span>SERVIR CLIENTE</span>
+        </button>
+      </section>
+
+    </div>
+
+    <!-- 4 Tables Area (Salão da Cafeteria) -->
+    <section class="tables-section" aria-label="Salão com 4 Mesas">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.4rem;">
+        <div>
+          <strong style="font-size:1rem; color:#4a220e;">🪑 Salão da Cafeteria — 4 Mesas</strong>
+          <span style="font-size:0.78rem; color:#7a5640; margin-left:0.5rem;">(Clientes sem vaga no balcão sentam aqui; paciência de 40s)</span>
+        </div>
+        <span class="shell-badge" style="background:#e8f7ee; color:#18732c; font-weight:800;">⚡ Entrega Automática nas Mesas</span>
+      </div>
+      <div class="tables-grid" id="tables-container">
+        <!-- 4 Tables rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- Results Panel: Últimos Pedidos (substitui o log de texto simples) -->
+    <section class="results-panel-box" aria-label="Últimos Pedidos">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.4rem;">
+        <strong style="font-size:0.95rem; color:#4a220e;">⚡ Últimos Pedidos</strong>
+        <span style="font-size:0.75rem; color:#7e5b47; font-weight:600;">Resultados instantâneos dos 3 atendimentos mais recentes</span>
+      </div>
+      <div class="recent-results-grid" id="recent-results-container">
+        <!-- Up to 3 recent results cards -->
+      </div>
+    </section>
+
+    <!-- Playtest Questions (Collapsible) -->
+    <section class="playtest-box">
+      <details open>
+        <summary>📋 Roteiro de Playtest (Perguntas para Avaliação)</summary>
+        <div class="playtest-content">
+          <p style="margin-top:0;">Avalie as novas mecânicas implementadas neste protótipo de playtest:</p>
+          <ol>
+            <li><strong>O DevLog ajudou a entender o que aconteceu e os cálculos?</strong> Os registros cronológicos com cálculos detalhados (preço da bebida + gorjeta = total ganho, penalidades de reputação e balanço final com margem de lucro e satisfação) tornaram a evolução do jogo transparente?</li>
+            <li><strong>A espera de um dia para usar a receita nova criou expectativa ou frustração?</strong> Saber que a receita recém-desbloqueada por conquista só fica disponível no dia seguinte incentivou o planejamento de compras no início do novo expediente ou pareceu demorado?</li>
+            <li><strong>A entrega automática ao pedido mais impaciente funcionou bem?</strong> O fato da bebida preparada ir direto para quem tinha menos paciência restante (seja no balcão ou nas mesas), ou ir para a bandeja de prontos se ninguém pediu, tornou a jogabilidade mais dinâmica e justa?</li>
+            <li><strong>Com os novos ajustes (cafeteira 2s, gorjeta mínima, bandeja 3, mesa 40s, rush menos denso), a satisfação ficou mais alta e o jogo mais justo?</strong> Como esses balanceamentos impactaram o ritmo das entregas e a sensação de controle durante os horários mais movimentados?</li>
+          </ol>
+          <p style="margin-bottom:0; font-size:0.8rem; color:#7e5b47;">Utilize o botão "📜 DevLog" e o botão "📊 Relatório" a qualquer momento para copiar seus dados e colaborar com o teste.</p>
+        </div>
+      </details>
+    </section>
+
+  </main>
+
+  <!-- Day End / Game Over Modal -->
+  <div class="modal-backdrop" id="modal-end-day" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-box">
+      <h2 class="modal-title" id="modal-title">📊 Balanço do Expediente</h2>
+      <p id="modal-subtitle" style="font-size:0.9rem; color:#6b4430; margin-top:0;">Resumo dos resultados das vendas de hoje.</p>
+
+      <div class="summary-grid">
+        <div class="summary-item">
+          <div class="summary-label">Atendidos com Sucesso</div>
+          <div class="summary-num" style="color:#1d7031;" id="summary-served">0</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Clientes Perdidos</div>
+          <div class="summary-num" style="color:#b22222;" id="summary-lost">0</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Saldo em Caixa</div>
+          <div class="summary-num" id="summary-money">R$ 0</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Reputação Atual</div>
+          <div class="summary-num" id="summary-rep">★ 0</div>
+        </div>
+      </div>
+
+      <div id="modal-action-area" style="display:flex; flex-direction:column; gap:0.6rem; margin-top:1.25rem;">
+        <!-- Dynamic Next Day / Restart Buttons -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Day Preparation Modal (Abertura da Loja) -->
+  <div class="modal-backdrop" id="modal-prep-day" role="dialog" aria-modal="true" aria-labelledby="prep-modal-title">
+    <div class="modal-box" style="max-width: 520px; max-height: 90vh; overflow-y: auto;">
+      <h2 class="modal-title" id="prep-modal-title">🏪 Abertura da Loja — Dia <span id="prep-day-num">2</span></h2>
+      
+      <!-- Day Forecast -->
+      <div id="prep-forecast-box" style="background:#fff8eb; border-left:4px solid #e08328; padding:0.6rem 0.85rem; border-radius:6px; margin:0.75rem 0; font-size:0.88rem; color:#5c3210;">
+        <strong>Previsão do dia:</strong> <span id="prep-forecast-text">Hoje o movimento está alto!</span>
+      </div>
+
+      <!-- Ingredient Buying / Restock -->
+      <div class="shop-prep-card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+          <strong style="font-size:0.9rem; color:#4a230e;">Comprar Estoque</strong>
+          <span style="font-size:0.85rem; color:#18732c; font-weight:800;" id="prep-available-money">Caixa: R$ 30</span>
+        </div>
+        <div style="font-size:0.78rem; color:#78543f; margin-bottom:0.6rem;">Adicione ingredientes para o expediente de hoje:</div>
+
+        <div id="shop-items-container">
+          <!-- Dynamic ingredient rows -->
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.65rem; padding-top:0.5rem; border-top:1px solid #e8d0be; font-size:0.9rem;">
+          <strong>Total da compra:</strong>
+          <strong id="shop-cart-total" style="color:#a83c11;">R$ 0</strong>
+        </div>
+      </div>
+
+      <!-- Prep-ahead Section -->
+      <div class="shop-prep-card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+          <strong style="font-size:0.9rem; color:#4a230e;">Bebidas Pré-montadas (Prep-ahead)</strong>
+          <span class="shell-badge" id="prep-ahead-counter" style="background:#fae5d0; color:#683210; font-weight:700;">0/3 preparadas</span>
+        </div>
+        <div style="font-size:0.78rem; color:#7a5640; line-height:1.4;">
+          Monte até 3 bebidas agora para entregar instantaneamente durante o dia.<br>
+          <strong style="color:#b23115;">Aviso:</strong> Bebidas pré-prontas não consumidas até o fim do dia são descartadas e os ingredientes são perdidos!
+        </div>
+
+        <div style="display:flex; gap:0.5rem; margin-top:0.6rem; flex-wrap:wrap;">
+          <select id="select-prep-recipe" class="input" style="flex:1; min-width:160px; font-size:0.85rem; padding:0.45rem; border-radius:8px; border:1px solid #c9a990;">
+            <!-- Recipes options -->
+          </select>
+          <button id="btn-prep-ahead-add" type="button" class="btn" style="background:#552711; color:#fff; font-weight:700; font-size:0.82rem; padding:0.45rem 0.8rem; border-radius:8px;">
+            + Preparar antes
+          </button>
+        </div>
+
+        <!-- Prepped Drinks List -->
+        <div id="prep-ahead-list" style="margin-top:0.5rem; display:flex; gap:0.4rem; flex-wrap:wrap;">
+          <!-- Chips of prepared drinks -->
+        </div>
+      </div>
+
+      <!-- Open Shop Button -->
+      <button class="btn-serve" id="btn-confirm-open-shop" type="button" style="width:100%; margin-top:0.5rem;">
+        <span>🚪</span>
+        <span>ABRIR A LOJA</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Cookbook & Achievements Modal -->
+  <div class="modal-backdrop" id="modal-cookbook" role="dialog" aria-modal="true" aria-labelledby="cookbook-title">
+    <div class="modal-box" style="max-width: 500px; max-height:88vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 class="modal-title" id="cookbook-title" style="margin:0;">📖 Livro & Conquistas</h2>
+        <button id="btn-close-cookbook" type="button" style="background:none; border:none; font-size:1.3rem; cursor:pointer; color:#6d3d25;">✕</button>
+      </div>
+
+      <div class="tab-nav" style="margin-top:0.75rem;">
+        <button class="tab-btn active" id="tab-btn-recipes" type="button">☕ Receitas</button>
+        <button class="tab-btn" id="tab-btn-achievements" type="button">🏆 Conquistas (<span id="unlocked-ach-count">0/3</span>)</button>
+      </div>
+
+      <!-- Recipes Tab -->
+      <div id="tab-content-recipes">
+        <p style="font-size:0.85rem; color:#6d4834; margin:0 0 0.85rem 0;">Receitas básicas e especiais desbloqueadas na cafeteria.</p>
+        <div id="cookbook-list" style="display:flex; flex-direction:column; gap:0.65rem;"></div>
+      </div>
+
+      <!-- Achievements Tab -->
+      <div id="tab-content-achievements" style="display:none;">
+        <p style="font-size:0.85rem; color:#6d4834; margin:0 0 0.85rem 0;">Complete metas para desbloquear novas receitas especiais permanentemente!</p>
+        <div id="achievements-list" style="display:flex; flex-direction:column; gap:0.75rem;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DevLog Drawer Panel (Abre e fecha sem pausar o jogo) -->
+  <aside class="devlog-drawer" id="drawer-devlog" aria-label="Painel de DevLog" aria-hidden="true">
+    <div class="devlog-header">
+      <div style="display:flex; align-items:center; gap:0.45rem;">
+        <span style="font-size:1.15rem;">📜</span>
+        <strong style="color:#4a220e; font-size:0.98rem;">DevLog de Acontecimentos</strong>
+      </div>
+      <button id="btn-close-devlog" type="button" style="background:none; border:none; font-size:1.35rem; cursor:pointer; color:#7a4f38; line-height:1;" aria-label="Fechar DevLog">✕</button>
+    </div>
+    <div style="padding:0.55rem 0.9rem; background:#f4ebd-3; background-color:#f6ede2; border-bottom:1px solid #e3d2be; display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-size:0.75rem; color:#6b4733; font-weight:600;">Cálculos da Run em tempo real</span>
+      <button id="btn-copy-devlog" type="button" style="background:#552711; color:#fff; border:none; padding:0.3rem 0.65rem; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer;">
+        📋 Copiar DevLog
+      </button>
+    </div>
+    <div class="devlog-content" id="devlog-entries-list">
+      <!-- Dynamic chronological log -->
+    </div>
+  </aside>
+
+  <!-- Run Report Modal -->
+  <div class="modal-backdrop" id="modal-run-report" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
+    <div class="modal-box" style="max-width: 540px; max-height:90vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 class="modal-title" id="report-modal-title" style="margin:0;">📊 Relatório da Run</h2>
+        <button id="btn-close-report" type="button" style="background:none; border:none; font-size:1.3rem; cursor:pointer; color:#6d3d25;">✕</button>
+      </div>
+      <p style="font-size:0.85rem; color:#6d4834; margin:0.4rem 0 0.75rem 0;">Coleta automática de dados para o playtest do Café Aurora.</p>
+
+      <div class="summary-grid" style="margin: 0.5rem 0 1rem 0;">
+        <div class="summary-item">
+          <div class="summary-label">Dia Alcançado</div>
+          <div class="summary-num" id="rep-day">Dia 1</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Saldo / Reputação</div>
+          <div class="summary-num" style="font-size:1.15rem;" id="rep-money-rep">R$ 30 | ★ 50</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Atendidos / Perdidos</div>
+          <div class="summary-num" style="font-size:1.15rem;" id="rep-served-lost">0 / 0</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Gorjetas Totais</div>
+          <div class="summary-num" style="color:#1d7031;" id="rep-tips">R$ 0</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Rushes Sobrevividos</div>
+          <div class="summary-num" style="color:#c45a27;" id="rep-rushes">0</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Tempo Médio Preparo</div>
+          <div class="summary-num" style="font-size:1.15rem;" id="rep-avg-time">0.0s</div>
+        </div>
+      </div>
+
+      <div style="background:#faf4ee; border:1px solid #e1ceb8; border-radius:8px; padding:0.65rem 0.85rem; font-size:0.85rem; margin-bottom:1rem;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:0.25rem;">
+          <span><strong>Receita mais pedida:</strong></span>
+          <span id="rep-fav-recipe" style="font-weight:700; color:#5c2d13;">Café Preto (0x)</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span><strong>Pedidos incorretos servidos:</strong></span>
+          <span id="rep-wrong-orders" style="font-weight:700; color:#a12626;">0</span>
+        </div>
+      </div>
+
+      <!-- Copy Report Button -->
+      <button class="btn-serve" id="btn-copy-report" type="button" style="width:100%; margin-bottom:1.25rem;">
+        <span>📋</span>
+        <span id="copy-report-text">Copiar Relatório (Para Colar no Chat)</span>
+      </button>
+
+      <!-- History mini-table -->
+      <div>
+        <strong style="font-size:0.9rem; color:#4a220e;">Histórico das Últimas 10 Runs (Navegador)</strong>
+        <div id="runs-history-container" style="overflow-x:auto;">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Run</th>
+                <th>Dia</th>
+                <th>Caixa</th>
+                <th>Rep.</th>
+                <th>Atend.</th>
+                <th>Perd.</th>
+                <th>Rushes</th>
+              </tr>
+            </thead>
+            <tbody id="runs-history-tbody">
+              <tr><td colspan="7" style="color:#888; font-style:italic;">Nenhuma run registrada ainda.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="report-action-footer" style="margin-top:1.25rem; display:none;">
+        <button class="btn-serve" id="btn-report-restart" type="button" style="background:#8e2323; width:100%;">
+          🔄 Iniciar Nova Run
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Game State Object
+    const GAME = {
+      day: 1,
+      dayDuration: 60,
+      dayTimer: 60,
+      isDayRunning: false,
+      dayInterval: null,
+      dayStartTime: Date.now(),
+
+      money: 30,
+      reputation: 50,
+
+      // DevLog system entries (persist between days of run)
+      devLog: [],
+
+      // Stocks
+      stocks: {
+        cafe: 6,
+        leite: 4,
+        chocolate: 0,
+        gelo: 0
+      },
+
+      // Assembly tray (max 3 items)
+      assembly: [],
+
+      // Pre-made drinks ready for instant delivery (max 3 slots)
+      preppedDrinks: [],
+
+      // Shopping cart in prep screen
+      shopCart: {
+        cafe: 0,
+        leite: 0,
+        chocolate: 0,
+        gelo: 0
+      },
+
+      // Brewing state
+      isBrewing: false,
+      brewProgress: 0,
+      brewInterval: null,
+
+      // Counter Orders (up to 3 simultaneous)
+      counterOrders: [],
+      selectedOrderId: null,
+      customerInterval: null,
+
+      // 4 Tables
+      tables: [
+        { id: 1, order: null },
+        { id: 2, order: null },
+        { id: 3, order: null },
+        { id: 4, order: null }
+      ],
+
+      // Continuous customer spawn timer (4-6s)
+      nextSpawnTimeout: null,
+
+      // 3 Most Recent Results (Results Panel)
+      recentResults: [],
+
+      // Rush hour states
+      isRushActive: false,
+      rushAnnounced: false,
+      rushEndedNotice: false,
+      rushServedCount: 0,
+      rushLostCount: 0,
+
+      // Tutorial state
+      tutorialStep: 0,
+      tutorialCustomersLeft: 3,
+      isTutorial: true,
+      dayForecast: 'normal',
+      customersLeftToday: 0,
+      servedToday: 0,
+      lostToday: 0,
+      moneyEarnedToday: 0,
+
+      // Daily satisfaction tracking
+      dayCustomerTotal: 0,
+      dayPatienceSumRatio: 0
+    };
+
+    // Run statistics tracking (for automatic playtest evidence)
+    const RUN_DATA = {
+      dayReached: 1,
+      totalServed: 0,
+      totalLost: 0,
+      wrongOrders: 0,
+      totalTips: 0,
+      rushesSurvived: 0,
+      recipeOrdersCount: { black: 0, latte: 0, mocha: 0, hot_choco: 0, iced_coffee: 0 },
+      prepTimes: [], // durations in seconds
+      blackCoffeesTotalServed: 0
+    };
+
+    // Ingredient Metadata (Unlocks tied to achievements or initial)
+    const INGREDIENTS = {
+      cafe: { name: 'Café', icon: '🫘', price: 2, unlocked: true },
+      leite: { name: 'Leite', icon: '🥛', price: 3, unlocked: true },
+      chocolate: { name: 'Chocolate', icon: '🍫', price: 4, unlocked: false },
+      gelo: { name: 'Gelo', icon: '🧊', price: 1, unlocked: false }
+    };
+
+    // Recipe Definitions (Black & Latte unlocked by default; others unlocked by achievements, available next day)
+    const RECIPES = {
+      black: {
+        id: 'black',
+        name: 'Café Preto',
+        icon: '☕',
+        price: 8,
+        ingredients: ['cafe'],
+        unlocked: true,
+        availableFromDay: 1,
+        hint: '1x Café'
+      },
+      latte: {
+        id: 'latte',
+        name: 'Latte',
+        icon: '🥛☕',
+        price: 12,
+        ingredients: ['cafe', 'leite'],
+        unlocked: true,
+        availableFromDay: 1,
+        hint: '1x Café + 1x Leite'
+      },
+      mocha: {
+        id: 'mocha',
+        name: 'Mocha',
+        icon: '🍫☕',
+        price: 16,
+        ingredients: ['cafe', 'leite', 'chocolate'],
+        unlocked: false,
+        availableFromDay: null,
+        hint: '1x Café + 1x Leite + 1x Chocolate'
+      },
+      hot_choco: {
+        id: 'hot_choco',
+        name: 'Chocolate Quente',
+        icon: '🍫🥛',
+        price: 13,
+        ingredients: ['leite', 'chocolate'],
+        unlocked: false,
+        availableFromDay: null,
+        hint: '1x Leite + 1x Chocolate'
+      },
+      iced_coffee: {
+        id: 'iced_coffee',
+        name: 'Café Gelado',
+        icon: '🧊☕',
+        price: 11,
+        ingredients: ['cafe', 'gelo'],
+        unlocked: false,
+        availableFromDay: null,
+        hint: '1x Café + 1x Gelo'
+      }
+    };
+
+    // Achievements System Definitions
+    const ACHIEVEMENTS = {
+      mocha: {
+        id: 'mocha',
+        recipeId: 'mocha',
+        title: 'Mestre do Espresso',
+        desc: 'Servir 10 cafés pretos no total',
+        unlocked: false,
+        target: 10,
+        getProgress: () => RUN_DATA.blackCoffeesTotalServed,
+        getProgressText: () => `Cafés servidos: ${Math.min(10, RUN_DATA.blackCoffeesTotalServed)}/10`
+      },
+      hot_choco: {
+        id: 'hot_choco',
+        recipeId: 'hot_choco',
+        title: 'Freguesia Feliz',
+        desc: 'Manter satisfação média acima de 80% por um dia inteiro',
+        unlocked: false,
+        target: 80,
+        getProgress: () => {
+          if (GAME.dayCustomerTotal === 0) return 0;
+          return Math.round((GAME.dayPatienceSumRatio / GAME.dayCustomerTotal) * 100);
+        },
+        getProgressText: () => {
+          if (ACHIEVEMENTS.hot_choco.unlocked) return 'Concluído: >80% de satisfação';
+          const cur = GAME.dayCustomerTotal > 0 ? Math.round((GAME.dayPatienceSumRatio / GAME.dayCustomerTotal) * 100) : 0;
+          return `Satisfação hoje: ${cur}%/80% (mín. 1 dia)`;
+        }
+      },
+      iced_coffee: {
+        id: 'iced_coffee',
+        recipeId: 'iced_coffee',
+        title: 'Sobrevivente do Rush',
+        desc: 'Atender 3 clientes durante um rush sem perder nenhum',
+        unlocked: false,
+        target: 3,
+        getProgress: () => GAME.rushServedCount,
+        getProgressText: () => `Rush atual: ${Math.min(3, GAME.rushServedCount)}/3 atendidos`
+      }
+    };
+
+    const CUSTOMER_NAMES = [
+      'Beatriz', 'Lucas', 'Mariana', 'Carlos', 'Juliana',
+      'Rodrigo', 'Camila', 'Gabriel', 'Fernanda', 'Diego'
+    ];
+
+    // Audio SFX synthesis with Web Audio API
+    let audioCtx = null;
+    function playTone(freq, duration = 0.1, type = 'sine') {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {
+        // Fallback silently if audio blocked
+      }
+    }
+
+    function soundSuccess() {
+      playTone(523.25, 0.12, 'triangle');
+      setTimeout(() => playTone(659.25, 0.18, 'triangle'), 100);
+      setTimeout(() => playTone(783.99, 0.25, 'triangle'), 200);
+    }
+
+    function soundError() {
+      playTone(280, 0.15, 'sawtooth');
+      setTimeout(() => playTone(180, 0.25, 'sawtooth'), 130);
+    }
+
+    function soundClick() {
+      playTone(440, 0.05, 'sine');
+    }
+
+    function soundPour() {
+      playTone(320, 0.08, 'sine');
+    }
+
+    // DOM Elements Cache
+    const elHudDay = document.getElementById('hud-day');
+    const elHudTimer = document.getElementById('hud-timer');
+    const elHudTimerLabel = document.getElementById('hud-timer-label');
+    const elHudMoney = document.getElementById('hud-money');
+    const elHudRep = document.getElementById('hud-rep');
+    const elStockCoffee = document.getElementById('hud-stock-coffee');
+    const elStockMilk = document.getElementById('hud-stock-milk');
+    const elStockChoco = document.getElementById('hud-stock-choco');
+    const elStockIce = document.getElementById('hud-stock-ice');
+    const elHudCardChoco = document.getElementById('hud-card-choco');
+    const elHudCardIce = document.getElementById('hud-card-ice');
+
+    const elTutorialBanner = document.getElementById('tutorial-banner');
+    const elTutorialMsg = document.getElementById('tutorial-msg');
+    const elBtnSkipTutorial = document.getElementById('btn-skip-tutorial');
+
+    const elFeedbackBar = document.getElementById('feedback-bar');
+    const elFeedbackIcon = document.getElementById('feedback-icon');
+    const elFeedbackText = document.getElementById('feedback-text');
+
+    const elCounterOrdersContainer = document.getElementById('counter-orders-container');
+    const elCounterCountPill = document.getElementById('counter-count-pill');
+    const elTablesContainer = document.getElementById('tables-container');
+    const elRecentResultsContainer = document.getElementById('recent-results-container');
+
+    const elPrepShelfSlots = document.getElementById('prep-shelf-slots');
+    const elPrepShelfCount = document.getElementById('prep-shelf-count');
+
+    const elAssemblyTray = document.getElementById('assembly-tray');
+    const elBtnAddCoffee = document.getElementById('btn-add-coffee');
+    const elBtnAddMilk = document.getElementById('btn-add-milk');
+    const elBtnAddChoco = document.getElementById('btn-add-choco');
+    const elBtnAddIce = document.getElementById('btn-add-ice');
+    const elBtnDiscard = document.getElementById('btn-discard');
+    const elBtnServe = document.getElementById('btn-serve');
+    const elStockCoffeeHint = document.getElementById('btn-stock-coffee-hint');
+    const elStockMilkHint = document.getElementById('btn-stock-milk-hint');
+    const elStockChocoHint = document.getElementById('btn-stock-choco-hint');
+    const elStockIceHint = document.getElementById('btn-stock-ice-hint');
+
+    const elMachineStatusText = document.getElementById('machine-status-text');
+    const elBrewProgressBar = document.getElementById('brew-progress-bar');
+
+    // Day End Modal
+    const elModalEndDay = document.getElementById('modal-end-day');
+    const elModalTitle = document.getElementById('modal-title');
+    const elModalSubtitle = document.getElementById('modal-subtitle');
+    const elSummaryServed = document.getElementById('summary-served');
+    const elSummaryLost = document.getElementById('summary-lost');
+    const elSummaryMoney = document.getElementById('summary-money');
+    const elSummaryRep = document.getElementById('summary-rep');
+    const elModalActionArea = document.getElementById('modal-action-area');
+
+    // Prep Day Modal
+    const elModalPrepDay = document.getElementById('modal-prep-day');
+    const elPrepDayNum = document.getElementById('prep-day-num');
+    const elPrepForecastText = document.getElementById('prep-forecast-text');
+    const elPrepAvailableMoney = document.getElementById('prep-available-money');
+    const elShopItemsContainer = document.getElementById('shop-items-container');
+    const elShopCartTotal = document.getElementById('shop-cart-total');
+    const elPrepAheadCounter = document.getElementById('prep-ahead-counter');
+    const elSelectPrepRecipe = document.getElementById('select-prep-recipe');
+    const elBtnPrepAheadAdd = document.getElementById('btn-prep-ahead-add');
+    const elPrepAheadList = document.getElementById('prep-ahead-list');
+    const elBtnConfirmOpenShop = document.getElementById('btn-confirm-open-shop');
+
+    // Cookbook Modal
+    const elModalCookbook = document.getElementById('modal-cookbook');
+    const elBtnOpenCookbook = document.getElementById('btn-open-cookbook');
+    const elBtnCloseCookbook = document.getElementById('btn-close-cookbook');
+    const elCookbookList = document.getElementById('cookbook-list');
+
+    // DevLog Timestamp Helper (mm:ss of current day)
+    function getDevLogTimestamp() {
+      const elapsed = Math.max(0, Math.floor((Date.now() - (GAME.dayStartTime || Date.now())) / 1000));
+      const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+      const s = String(elapsed % 60).padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    // DevLog Add Event & Auto Render
+    function addDevLog(text, isDivider = false) {
+      GAME.devLog.push({ text, isDivider, timestamp: Date.now() });
+      renderDevLog();
+      console.log(`[DevLog] ${text}`);
+    }
+
+    function renderDevLog() {
+      const container = document.getElementById('devlog-entries-list');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (GAME.devLog.length === 0) {
+        container.innerHTML = '<div style="color:#8a6c58; font-style:italic; padding:0.5rem;">Nenhum evento registrado ainda.</div>';
+        return;
+      }
+
+      GAME.devLog.forEach(entry => {
+        const row = document.createElement('div');
+        row.className = entry.isDivider ? 'devlog-row divider' : 'devlog-row';
+        row.textContent = entry.text;
+        container.appendChild(row);
+      });
+
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function copyDevLogToClipboard() {
+      if (GAME.devLog.length === 0) {
+        showFeedback('ℹ️', 'DevLog vazio no momento.', 'default');
+        return;
+      }
+      const rawText = GAME.devLog.map(e => e.text).join('\n');
+      const btn = document.getElementById('btn-copy-devlog');
+
+      navigator.clipboard.writeText(rawText).then(() => {
+        if (btn) {
+          const old = btn.textContent;
+          btn.textContent = '✅ Copiado!';
+          setTimeout(() => btn.textContent = old, 2000);
+        }
+      }).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = rawText;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (btn) {
+          const old = btn.textContent;
+          btn.textContent = '✅ Copiado!';
+          setTimeout(() => btn.textContent = old, 2000);
+        }
+      });
+    }
+
+    // Results Panel (Last 3 orders)
+    function addRecentResult(item) {
+      // item = { icon, status ('ok'|'error'|'lost'), text ('OK!'|'Errou!'|'Perdeu!'), value, name }
+      GAME.recentResults.unshift({
+        id: Date.now() + Math.random(),
+        icon: item.icon,
+        status: item.status,
+        text: item.text,
+        value: item.value,
+        name: item.name
+      });
+      if (GAME.recentResults.length > 3) {
+        GAME.recentResults.pop();
+      }
+      renderRecentResults();
+    }
+
+    function renderRecentResults() {
+      elRecentResultsContainer.innerHTML = '';
+      if (GAME.recentResults.length === 0) {
+        elRecentResultsContainer.innerHTML = `
+          <div style="grid-column: 1 / -1; background:#faf6f0; border:1px dashed #d6bfab; border-radius:10px; padding:0.85rem; text-align:center; color:#957b69; font-size:0.82rem; font-style:italic;">
+            Aguardando primeiras entregas...
+          </div>
+        `;
+        return;
+      }
+
+      GAME.recentResults.forEach(res => {
+        const card = document.createElement('div');
+        card.className = `result-item-card ${res.status}`;
+        const isOk = res.status === 'ok';
+        card.innerHTML = `
+          <div class="result-icon-big">${res.icon}</div>
+          <div style="flex-grow:1;">
+            <div class="result-badge-text">${isOk ? '✅ ' : '❌ '}${res.text}</div>
+            <div class="result-value-sub">${res.value}</div>
+          </div>
+        `;
+        elRecentResultsContainer.appendChild(card);
+      });
+    }
+
+    // Feedback message display
+    let feedbackTimeout = null;
+    function showFeedback(icon, text, type = 'default', duration = 3000) {
+      if (feedbackTimeout) clearTimeout(feedbackTimeout);
+      elFeedbackIcon.textContent = icon;
+      elFeedbackText.textContent = text;
+      elFeedbackBar.className = `feedback-banner feedback-${type}`;
+
+      if (type !== 'default') {
+        feedbackTimeout = setTimeout(() => {
+          elFeedbackBar.className = 'feedback-banner feedback-default';
+          elFeedbackIcon.textContent = '☕';
+          elFeedbackText.textContent = 'Atenda o próximo cliente na fila!';
+        }, duration);
+      }
+    }
+
+    // Rush Badge & Elements
+    const elRushBadgePill = document.getElementById('rush-badge-pill');
+    const elBtnOpenReport = document.getElementById('btn-open-report');
+    const elModalRunReport = document.getElementById('modal-run-report');
+    const elBtnCloseReport = document.getElementById('btn-close-report');
+    const elBtnCopyReport = document.getElementById('btn-copy-report');
+    const elCopyReportText = document.getElementById('copy-report-text');
+    const elRunsHistoryTbody = document.getElementById('runs-history-tbody');
+    const elReportActionFooter = document.getElementById('report-action-footer');
+    const elBtnReportRestart = document.getElementById('btn-report-restart');
+
+    // Cookbook tabs
+    const elTabBtnRecipes = document.getElementById('tab-btn-recipes');
+    const elTabBtnAchievements = document.getElementById('tab-btn-achievements');
+    const elTabContentRecipes = document.getElementById('tab-content-recipes');
+    const elTabContentAchievements = document.getElementById('tab-content-achievements');
+    const elAchievementsList = document.getElementById('achievements-list');
+    const elUnlockedAchCount = document.getElementById('unlocked-ach-count');
+
+    // Report fields
+    const elRepDay = document.getElementById('rep-day');
+    const elRepMoneyRep = document.getElementById('rep-money-rep');
+    const elRepServedLost = document.getElementById('rep-served-lost');
+    const elRepTips = document.getElementById('rep-tips');
+    const elRepRushes = document.getElementById('rep-rushes');
+    const elRepAvgTime = document.getElementById('rep-avg-time');
+    const elRepFavRecipe = document.getElementById('rep-fav-recipe');
+    const elRepWrongOrders = document.getElementById('rep-wrong-orders');
+
+    // Helper functions (Recipes available ONLY starting the next day)
+    function isRecipeAvailable(recipe) {
+      return recipe.unlocked && recipe.availableFromDay !== null && GAME.day >= recipe.availableFromDay;
+    }
+
+    function getUnlockedRecipes() {
+      return Object.values(RECIPES).filter(r => isRecipeAvailable(r));
+    }
+
+    function updateIngredientAvailability() {
+      INGREDIENTS.chocolate.unlocked = Object.values(RECIPES).some(r => isRecipeAvailable(r) && r.ingredients.includes('chocolate'));
+      INGREDIENTS.gelo.unlocked = Object.values(RECIPES).some(r => isRecipeAvailable(r) && r.ingredients.includes('gelo'));
+    }
+
+    // Check achievement unlock rules
+    function checkAchievements() {
+      // 1. Mocha: 10 black coffees served
+      if (!ACHIEVEMENTS.mocha.unlocked && RUN_DATA.blackCoffeesTotalServed >= 10) {
+        unlockAchievement('mocha');
+      }
+
+      // 2. Iced coffee: 3 customers served in rush with 0 lost in that rush
+      if (!ACHIEVEMENTS.iced_coffee.unlocked && GAME.isRushActive && GAME.rushServedCount >= 3 && GAME.rushLostCount === 0) {
+        unlockAchievement('iced_coffee');
+      }
+    }
+
+    function checkDailySatisfactionAchievement() {
+      if (ACHIEVEMENTS.hot_choco.unlocked) return;
+      if (GAME.dayCustomerTotal >= 3) {
+        const avgSat = (GAME.dayPatienceSumRatio / GAME.dayCustomerTotal) * 100;
+        if (avgSat >= 80 && GAME.lostToday === 0) {
+          unlockAchievement('hot_choco');
+        }
+      }
+    }
+
+    function unlockAchievement(key) {
+      const ach = ACHIEVEMENTS[key];
+      if (!ach || ach.unlocked) return;
+
+      ach.unlocked = true;
+      const targetRecipe = RECIPES[ach.recipeId];
+      targetRecipe.unlocked = true;
+      // Recipe unlocked becomes available only on the NEXT day
+      targetRecipe.availableFromDay = GAME.day + 1;
+
+      soundSuccess();
+      showUnlockToast(`🎉 Nova receita: ${targetRecipe.name} — disponível amanhã!`);
+      addDevLog(`${getDevLogTimestamp()} — Conquista desbloqueada: ${ach.title} (${targetRecipe.name} — disponível amanhã no Dia ${targetRecipe.availableFromDay}!)`);
+      
+      updateIngredientAvailability();
+      updateHUD();
+      renderAchievementsList();
+      renderCookbookRecipes();
+    }
+
+    // 3-second non-intrusive unlock banner
+    function showUnlockToast(msg) {
+      const existing = document.querySelector('.unlock-toast');
+      if (existing) existing.remove();
+
+      const toast = document.createElement('div');
+      toast.className = 'unlock-toast';
+      toast.innerHTML = `<span>✨</span><span>${msg}</span>`;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(15px)';
+        setTimeout(() => toast.remove(), 400);
+      }, 3000);
+    }
+
+    // ==========================================
+    // 1) TUTORIAL TOOLTIPS (1 phrase, max 10 words, self-closing)
+    // ==========================================
+    const shownTutorialTooltips = new Set();
+    let currentTooltipEl = null;
+    let tooltipTimer = null;
+
+    const TUTORIAL_TOOLTIPS_DATA = {
+      'btn-add-coffee': { text: '+ Café — adiciona café à xícara', color: '#8e4822' },
+      'btn-add-milk': { text: '+ Leite — adiciona leite à xícara', color: '#6e4530' },
+      'btn-discard': { text: 'Descartar — devolve os ingredientes ao estoque', color: '#7a462b' },
+      'btn-serve': { text: 'SERVIR — entrega a bebida ao cliente', color: '#c45a27' },
+      'btn-open-cookbook': { text: 'Livro — consulte receitas e metas de conquista', color: '#522915' },
+      'btn-skip-tutorial': { text: 'Pular — avança direto para o segundo dia', color: '#aa6820' }
+    };
+
+    function attachTutorialTooltip(btnId) {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+
+      const trigger = (e) => {
+        if (!GAME.isTutorial) return;
+        if (shownTutorialTooltips.has(btnId)) return;
+
+        showTutorialTooltip(btn, TUTORIAL_TOOLTIPS_DATA[btnId]);
+        shownTutorialTooltips.add(btnId);
+      };
+
+      btn.addEventListener('mouseenter', trigger);
+      btn.addEventListener('click', trigger);
+    }
+
+    function showTutorialTooltip(targetEl, data) {
+      if (!data) return;
+      dismissTooltip();
+
+      const tip = document.createElement('div');
+      tip.className = 'tutorial-tooltip';
+      tip.style.backgroundColor = data.color;
+      tip.style.borderColor = data.color;
+      tip.textContent = data.text;
+      document.body.appendChild(tip);
+      currentTooltipEl = tip;
+
+      // Position above target
+      const rect = targetEl.getBoundingClientRect();
+      const tipRect = tip.getBoundingClientRect();
+      const top = Math.max(10, rect.top - tipRect.height - 8);
+      const left = Math.max(10, Math.min(window.innerWidth - tipRect.width - 10, rect.left + (rect.width / 2) - (tipRect.width / 2)));
+
+      tip.style.top = `${top}px`;
+      tip.style.left = `${left}px`;
+
+      // Auto dismiss after 3s
+      tooltipTimer = setTimeout(dismissTooltip, 3000);
+    }
+
+    function dismissTooltip() {
+      if (tooltipTimer) {
+        clearTimeout(tooltipTimer);
+        tooltipTimer = null;
+      }
+      if (currentTooltipEl) {
+        currentTooltipEl.remove();
+        currentTooltipEl = null;
+      }
+    }
+
+    // Dismiss tooltip upon clicking anywhere on document
+    document.addEventListener('click', (e) => {
+      if (currentTooltipEl && !e.target.closest('.tutorial-tooltip')) {
+        dismissTooltip();
+      }
+    });
+
+    // Update Top HUD Display
+    function updateHUD() {
+      elHudDay.textContent = `Dia ${GAME.day}`;
+      if (GAME.isTutorial) {
+        elHudTimerLabel.textContent = 'Clientes Restantes';
+        elHudTimer.textContent = `${GAME.tutorialCustomersLeft} restam`;
+      } else {
+        elHudTimerLabel.textContent = 'Tempo Restante';
+        elHudTimer.textContent = `${GAME.dayTimer}s`;
+      }
+
+      elHudMoney.textContent = `R$ ${GAME.money}`;
+      elHudRep.textContent = `★ ${GAME.reputation}/100`;
+
+      elStockCoffee.textContent = `🫘 ${GAME.stocks.cafe} un`;
+      elStockMilk.textContent = `🥛 ${GAME.stocks.leite} un`;
+      elStockCoffeeHint.textContent = `Estoque: ${GAME.stocks.cafe}`;
+      elStockMilkHint.textContent = `Estoque: ${GAME.stocks.leite}`;
+
+      // Chocolate visibility if unlocked
+      if (INGREDIENTS.chocolate.unlocked) {
+        elHudCardChoco.style.display = 'flex';
+        elBtnAddChoco.style.display = 'flex';
+        elStockChoco.textContent = `🍫 ${GAME.stocks.chocolate} un`;
+        elStockChocoHint.textContent = `Estoque: ${GAME.stocks.chocolate}`;
+      } else {
+        elHudCardChoco.style.display = 'none';
+        elBtnAddChoco.style.display = 'none';
+      }
+
+      // Ice visibility if unlocked
+      if (INGREDIENTS.gelo.unlocked) {
+        elHudCardIce.style.display = 'flex';
+        elBtnAddIce.style.display = 'flex';
+        elStockIce.textContent = `🧊 ${GAME.stocks.gelo} un`;
+        elStockIceHint.textContent = `Estoque: ${GAME.stocks.gelo}`;
+      } else {
+        elHudCardIce.style.display = 'none';
+        elBtnAddIce.style.display = 'none';
+      }
+
+      const trayFull = GAME.assembly.length >= 3;
+      elBtnAddCoffee.disabled = GAME.isBrewing || GAME.stocks.cafe <= 0 || trayFull;
+      elBtnAddMilk.disabled = GAME.isBrewing || GAME.stocks.leite <= 0 || trayFull;
+      elBtnAddChoco.disabled = GAME.isBrewing || GAME.stocks.chocolate <= 0 || trayFull;
+      elBtnAddIce.disabled = GAME.isBrewing || GAME.stocks.gelo <= 0 || trayFull;
+      elBtnDiscard.disabled = GAME.isBrewing || GAME.assembly.length === 0;
+
+      const hasOrders = GAME.counterOrders.length > 0 || GAME.tables.some(t => t.order !== null);
+      elBtnServe.disabled = GAME.isBrewing || GAME.assembly.length === 0 || !hasOrders;
+
+      renderPrepShelf();
+      renderCounterOrders();
+      renderTables();
+      updateTutorialGuidance();
+    }
+
+    // Render Counter Orders (Up to 3 simultaneous)
+    function renderCounterOrders() {
+      elCounterCountPill.textContent = `${GAME.counterOrders.length}/3 no balcão`;
+      elCounterOrdersContainer.innerHTML = '';
+
+      if (GAME.counterOrders.length === 0) {
+        elCounterOrdersContainer.innerHTML = `
+          <div class="counter-slot-empty" style="grid-column: 1 / -1;">
+            <span>🍽️ Balcão livre</span>
+            <small style="margin-top:0.3rem;">Aguardando novos clientes chegarem...</small>
+          </div>
+        `;
+        return;
+      }
+
+      GAME.counterOrders.forEach((order) => {
+        const isSelected = GAME.selectedOrderId === order.id;
+        const card = document.createElement('div');
+        card.className = `counter-order-card ${isSelected ? 'selected' : ''}`;
+        card.setAttribute('role', 'button');
+        card.setAttribute('tabindex', '0');
+        card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+
+        const fraction = Math.max(0, order.patience / order.totalPatience);
+        const pct = Math.min(100, fraction * 100);
+        let avatar = '🙂';
+        let barColor = '#189e47';
+        if (fraction < 0.25) {
+          avatar = '😠';
+          barColor = '#d32f2f';
+        } else if (fraction < 0.55) {
+          avatar = '😐';
+          barColor = '#df9e19';
+        }
+
+        const miniTags = order.recipe.ingredients.map(ing => 
+          `<span class="mini-tag">${INGREDIENTS[ing].icon} ${INGREDIENTS[ing].name}</span>`
+        ).join('');
+
+        card.innerHTML = `
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+              <strong style="color:#4a230e; font-size:0.9rem;">${avatar} ${order.name}</strong>
+              <span style="font-size:0.75rem; font-weight:800; color:#b25329;">R$ ${order.recipe.price}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.4rem; font-weight:800; color:#311508; font-size:1.05rem;">
+              <span>${order.recipe.icon}</span>
+              <span>${order.recipe.name}</span>
+            </div>
+            <div style="display:flex; gap:0.25rem; flex-wrap:wrap; margin-top:0.35rem;">
+              ${miniTags}
+            </div>
+          </div>
+          <div style="margin-top:0.65rem;">
+            <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:700; color:#6b4733; margin-bottom:0.2rem;">
+              <span>Paciência</span>
+              <span>${Math.ceil(order.patience)}s</span>
+            </div>
+            <div class="patience-bar-bg" style="height:10px;">
+              <div class="patience-bar-fill" style="width:${pct}%; background-color:${barColor};"></div>
+            </div>
+          </div>
+        `;
+
+        card.addEventListener('click', () => {
+          // Delivery is independent of selection, but clicking still highlights
+          GAME.selectedOrderId = (GAME.selectedOrderId === order.id) ? null : order.id;
+          soundClick();
+          renderCounterOrders();
+        });
+
+        elCounterOrdersContainer.appendChild(card);
+      });
+
+      // Add empty placeholder slots if < 3 to indicate remaining capacity
+      const emptySlotsNeeded = 3 - GAME.counterOrders.length;
+      for (let i = 0; i < emptySlotsNeeded; i++) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'counter-slot-empty';
+        emptyDiv.innerHTML = `<span>Espaço livre</span><small style="opacity:0.8;">Vaga no balcão</small>`;
+        elCounterOrdersContainer.appendChild(emptyDiv);
+      }
+    }
+
+    // Render 4 Tables (Salão)
+    function renderTables() {
+      elTablesContainer.innerHTML = '';
+
+      GAME.tables.forEach(table => {
+        const card = document.createElement('div');
+        const isOccupied = table.order !== null;
+        card.className = `table-card ${isOccupied ? 'occupied' : ''}`;
+
+        let innerContent = '';
+        if (isOccupied) {
+          const ord = table.order;
+          const fraction = Math.max(0, ord.patience / ord.totalPatience);
+          const pct = Math.min(100, fraction * 100);
+          let avatar = '🙂';
+          let barColor = '#189e47';
+          if (fraction < 0.25) { avatar = '😠'; barColor = '#d32f2f'; }
+          else if (fraction < 0.55) { avatar = '😐'; barColor = '#df9e19'; }
+
+          const miniTags = ord.recipe.ingredients.map(ing => 
+            `<span class="mini-tag">${INGREDIENTS[ing].icon} ${INGREDIENTS[ing].name}</span>`
+          ).join('');
+
+          innerContent = `
+            <div style="font-size:0.75rem; font-weight:800; color:#b25329; text-transform:uppercase;">Mesa ${table.id}</div>
+            <div class="table-visual" style="border-color:#b25329;">${avatar}</div>
+            <div class="table-floating-order">
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; font-weight:800; color:#4a230e;">
+                <span>${ord.name}</span>
+                <span style="color:#18732c;">R$ ${ord.recipe.price}</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:0.35rem; font-weight:800; font-size:0.95rem; color:#2e1509; margin-top:0.2rem;">
+                <span>${ord.recipe.icon}</span>
+                <span>${ord.recipe.name}</span>
+              </div>
+              <div style="display:flex; gap:0.2rem; flex-wrap:wrap; margin:0.3rem 0;">
+                ${miniTags}
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:0.72rem; font-weight:700; color:#78543f;">
+                <span>Paciência</span>
+                <span>${Math.ceil(ord.patience)}s</span>
+              </div>
+              <div class="patience-bar-bg" style="height:8px; margin-top:0.15rem;">
+                <div class="patience-bar-fill" style="width:${pct}%; background-color:${barColor};"></div>
+              </div>
+              <div style="font-size:0.68rem; background:#e8f7ee; color:#18732c; font-weight:800; padding:2px 6px; border-radius:4px; text-align:center; margin-top:0.35rem;">
+                ⚡ Entrega Automática
+              </div>
+            </div>
+          `;
+        } else {
+          innerContent = `
+            <div style="font-size:0.75rem; font-weight:800; color:#7c5c46; text-transform:uppercase;">Mesa ${table.id}</div>
+            <div class="table-visual">🪑</div>
+            <span style="font-size:0.78rem; color:#957a66; font-style:italic; margin-top:0.4rem;">Mesa livre</span>
+          `;
+        }
+
+        card.innerHTML = innerContent;
+        elTablesContainer.appendChild(card);
+      });
+    }
+
+    // Update Assembly Display
+    function renderAssembly() {
+      elAssemblyTray.innerHTML = '';
+      if (GAME.assembly.length === 0) {
+        const span = document.createElement('span');
+        span.style.color = '#9e8270';
+        span.style.fontSize = '0.85rem';
+        span.style.fontStyle = 'italic';
+        span.textContent = 'Nenhum ingrediente adicionado';
+        elAssemblyTray.appendChild(span);
+        return;
+      }
+
+      const iconMap = { cafe: '🫘 Café', leite: '🥛 Leite', chocolate: '🍫 Chocolate', gelo: '🧊 Gelo' };
+      GAME.assembly.forEach((item) => {
+        const chip = document.createElement('span');
+        chip.className = 'ingredient-chip';
+        chip.textContent = iconMap[item] || item;
+        elAssemblyTray.appendChild(chip);
+      });
+    }
+
+    // Prep-ahead shelf during play
+    function renderPrepShelf() {
+      elPrepShelfCount.textContent = `${GAME.preppedDrinks.length}/3`;
+      elPrepShelfSlots.innerHTML = '';
+
+      const warningEl = document.getElementById('prep-shelf-warning');
+      const machineWarningEl = document.getElementById('machine-tray-warning');
+      const isFull = GAME.preppedDrinks.length >= 3;
+
+      if (warningEl) {
+        warningEl.style.display = isFull ? 'block' : 'none';
+      }
+      if (machineWarningEl) {
+        machineWarningEl.style.display = isFull ? 'inline-block' : 'none';
+      }
+
+      if (GAME.preppedDrinks.length === 0) {
+        elPrepShelfSlots.innerHTML = '<div class="prep-slot-empty">Nenhuma pré-pronta</div>';
+        return;
+      }
+
+      const hasOrders = GAME.counterOrders.length > 0 || GAME.tables.some(t => t.order !== null);
+
+      GAME.preppedDrinks.forEach((recipe, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'prep-item-btn';
+        btn.type = 'button';
+        btn.innerHTML = `<span>${recipe.icon} ${recipe.name}</span> <span style="font-size:0.7rem; background:#218838; color:#fff; padding:2px 6px; border-radius:4px;">Entregar</span>`;
+        btn.disabled = GAME.isBrewing || !hasOrders;
+        btn.addEventListener('click', () => deliverPreppedDrink(idx));
+        elPrepShelfSlots.appendChild(btn);
+      });
+    }
+
+    // Instant deliver prepped drink
+    function deliverPreppedDrink(index) {
+      if (GAME.isBrewing) return;
+      const preppedRecipe = GAME.preppedDrinks.splice(index, 1)[0];
+      deliverDrinkDirect(preppedRecipe, true);
+    }
+
+    // Tutorial Guided Steps Management
+    function updateTutorialGuidance() {
+      // Clear highlights
+      [elBtnAddCoffee, elBtnAddMilk, elBtnServe].forEach(el => el.classList.remove('guide-pulse'));
+
+      const currentTutorialOrder = GAME.counterOrders[0];
+      if (!GAME.isTutorial || !GAME.isDayRunning || !currentTutorialOrder) {
+        elTutorialBanner.style.display = 'none';
+        return;
+      }
+
+      elTutorialBanner.style.display = 'flex';
+
+      if (GAME.isBrewing) {
+        elTutorialMsg.textContent = 'Aguarde o preparo da máquina';
+        return;
+      }
+
+      const targetRecipe = currentTutorialOrder.recipe;
+      const counts = { cafe: 0, leite: 0 };
+      GAME.assembly.forEach(i => counts[i] = (counts[i] || 0) + 1);
+
+      if (counts.cafe === 0) {
+        elTutorialMsg.textContent = 'Clique no café';
+        elBtnAddCoffee.classList.add('guide-pulse');
+      } else if (targetRecipe.id === 'latte' && counts.leite === 0) {
+        elTutorialMsg.textContent = 'Clique no leite';
+        elBtnAddMilk.classList.add('guide-pulse');
+      } else {
+        elTutorialMsg.textContent = 'Agora sirva o cliente';
+        elBtnServe.classList.add('guide-pulse');
+      }
+    }
+
+    // Customer Spawning Logic with 3 Counter Slots + 4 Tables Overflow
+    function scheduleNextSpawn() {
+      if (!GAME.isDayRunning || GAME.isTutorial) return;
+
+      // Rush menos denso: manter intervalo mínimo de 4 a 6s também durante o rush para evitar desistências em cascata
+      const delay = Math.floor(4000 + Math.random() * 2000);
+
+      clearTimeout(GAME.nextSpawnTimeout);
+      GAME.nextSpawnTimeout = setTimeout(() => {
+        if (GAME.isDayRunning) {
+          spawnCustomer();
+          scheduleNextSpawn();
+        }
+      }, delay);
+    }
+
+    function spawnCustomer() {
+      if (!GAME.isDayRunning) return;
+
+      if (GAME.isTutorial) {
+        if (GAME.tutorialCustomersLeft <= 0) {
+          endDay();
+          return;
+        }
+        if (GAME.counterOrders.length >= 1) return; // 1 customer at a time in tutorial
+      }
+
+      let chosenRecipe;
+      if (GAME.isTutorial) {
+        const tutorialRecipes = [RECIPES.black, RECIPES.latte];
+        chosenRecipe = tutorialRecipes[Math.floor(Math.random() * tutorialRecipes.length)];
+      } else {
+        const availableRecipes = getUnlockedRecipes();
+        chosenRecipe = availableRecipes[Math.floor(Math.random() * availableRecipes.length)];
+      }
+      const name = CUSTOMER_NAMES[Math.floor(Math.random() * CUSTOMER_NAMES.length)];
+
+      // Patience parameters
+      let counterMaxPatience = 20;
+      if (GAME.isTutorial) {
+        counterMaxPatience = 60;
+      } else if (GAME.isRushActive) {
+        counterMaxPatience = 12; // Rush patience drains in 12s
+      }
+
+      // Check if counter has space (up to 3)
+      if (GAME.counterOrders.length < 3) {
+        const newOrder = {
+          id: 'counter_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+          name,
+          recipe: chosenRecipe,
+          patience: counterMaxPatience,
+          totalPatience: counterMaxPatience,
+          spawnTimestamp: Date.now()
+        };
+        GAME.counterOrders.push(newOrder);
+        RUN_DATA.recipeOrdersCount[chosenRecipe.id] = (RUN_DATA.recipeOrdersCount[chosenRecipe.id] || 0) + 1;
+        addDevLog(`${getDevLogTimestamp()} — ${name} chegou ao balcão: pediu ${chosenRecipe.name} (R$ ${chosenRecipe.price})`);
+      } else {
+        // Counter is full (3/3), overflow to 4 Tables!
+        const freeTable = GAME.tables.find(t => t.order === null);
+        if (freeTable) {
+          const tableOrder = {
+            id: 'table_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+            name,
+            recipe: chosenRecipe,
+            patience: 40, // 40s patience at tables (ajuste de balanceamento)
+            totalPatience: 40,
+            spawnTimestamp: Date.now(),
+            tableId: freeTable.id
+          };
+          freeTable.order = tableOrder;
+          RUN_DATA.recipeOrdersCount[chosenRecipe.id] = (RUN_DATA.recipeOrdersCount[chosenRecipe.id] || 0) + 1;
+          showFeedback('🪑', `${name} sentou na Mesa ${freeTable.id} (Paciência: 40s).`, 'default', 2800);
+          addDevLog(`${getDevLogTimestamp()} — ${name} sentou na Mesa ${freeTable.id}: pediu ${chosenRecipe.name} (R$ ${chosenRecipe.price})`);
+        } else {
+          // Both counter (3) and all tables (4) full -> customer desiste na porta
+          showFeedback('🚪', `${name} viu a cafeteria lotada e desistiu na porta!`, 'default', 2200);
+          addDevLog(`${getDevLogTimestamp()} — ${name} desistiu na porta: cafeteria lotada (sem vagas)`);
+        }
+      }
+
+      updateHUD();
+      renderCounterOrders();
+      renderTables();
+    }
+
+    function onCustomerTick() {
+      if (!GAME.isDayRunning) return;
+
+      let changed = false;
+
+      // 1) Tick Counter Orders
+      for (let i = GAME.counterOrders.length - 1; i >= 0; i--) {
+        const order = GAME.counterOrders[i];
+        order.patience -= 0.1;
+
+        if (order.patience <= 0) {
+          order.patience = 0;
+          GAME.counterOrders.splice(i, 1);
+          if (GAME.selectedOrderId === order.id) {
+            GAME.selectedOrderId = null;
+          }
+
+          GAME.lostToday += 1;
+          RUN_DATA.totalLost += 1;
+          GAME.dayCustomerTotal += 1;
+
+          if (GAME.isTutorial) {
+            GAME.tutorialCustomersLeft--;
+            showFeedback('⏳', `${order.name} saiu. No tutorial você não perde reputação!`, 'default');
+            addDevLog(`${getDevLogTimestamp()} — ${order.name} desistiu no tutorial (sem penalidade)`);
+          } else if (GAME.isRushActive) {
+            GAME.reputation = Math.max(0, GAME.reputation - 10);
+            GAME.rushLostCount += 1;
+            soundError();
+            showFeedback('💥', `${order.name} desistiu no RUSH! Reputação -10`, 'error', 3000);
+            addDevLog(`${getDevLogTimestamp()} — ${order.name} desistiu no balcão durante o RUSH: reputação -10`);
+            addRecentResult({ icon: order.recipe.icon, status: 'lost', text: 'Perdeu!', value: '-10 rep', name: order.name });
+          } else {
+            GAME.reputation = Math.max(0, GAME.reputation - 5);
+            soundError();
+            showFeedback('💢', `${order.name} cansou de esperar no balcão! Reputação -5`, 'error', 3000);
+            addDevLog(`${getDevLogTimestamp()} — ${order.name} desistiu no balcão: reputação -5`);
+            addRecentResult({ icon: order.recipe.icon, status: 'lost', text: 'Perdeu!', value: '-5 rep', name: order.name });
+          }
+
+          if (GAME.reputation <= 0) {
+            endDay();
+            return;
+          }
+
+          if (GAME.isTutorial && GAME.tutorialCustomersLeft <= 0) {
+            endDay();
+            return;
+          }
+
+          changed = true;
+        }
+      }
+
+      // 2) Tick Tables Orders (40s patience)
+      GAME.tables.forEach(table => {
+        if (table.order) {
+          table.order.patience -= 0.1;
+          if (table.order.patience <= 0) {
+            const lostOrder = table.order;
+            table.order = null;
+
+            GAME.lostToday += 1;
+            RUN_DATA.totalLost += 1;
+            GAME.dayCustomerTotal += 1;
+
+            if (GAME.isRushActive) {
+              GAME.reputation = Math.max(0, GAME.reputation - 10);
+              GAME.rushLostCount += 1;
+              soundError();
+              showFeedback('💥', `${lostOrder.name} da Mesa ${table.id} desistiu no RUSH! Reputação -10`, 'error', 3000);
+              addDevLog(`${getDevLogTimestamp()} — ${lostOrder.name} desistiu na Mesa ${table.id} durante o RUSH: reputação -10`);
+              addRecentResult({ icon: lostOrder.recipe.icon, status: 'lost', text: 'Perdeu!', value: '-10 rep', name: lostOrder.name });
+            } else {
+              GAME.reputation = Math.max(0, GAME.reputation - 5);
+              soundError();
+              showFeedback('💢', `${lostOrder.name} da Mesa ${table.id} cansou de esperar! Reputação -5`, 'error', 3000);
+              addDevLog(`${getDevLogTimestamp()} — ${lostOrder.name} desistiu na Mesa ${table.id}: reputação -5`);
+              addRecentResult({ icon: lostOrder.recipe.icon, status: 'lost', text: 'Perdeu!', value: '-5 rep', name: lostOrder.name });
+            }
+
+            if (GAME.reputation <= 0) {
+              endDay();
+              return;
+            }
+
+            changed = true;
+          }
+        }
+      });
+
+      renderCounterOrders();
+      renderTables();
+    }
+
+    // Assembly Ingredients
+    function addIngredient(type) {
+      if (GAME.isBrewing || GAME.assembly.length >= 3) return;
+      if (!GAME.stocks[type] || GAME.stocks[type] <= 0) return;
+
+      GAME.stocks[type]--;
+      GAME.assembly.push(type);
+      soundPour();
+
+      renderAssembly();
+      updateHUD();
+    }
+
+    function discardAssembly() {
+      if (GAME.isBrewing || GAME.assembly.length === 0) return;
+
+      GAME.assembly.forEach(item => {
+        if (GAME.stocks[item] !== undefined) GAME.stocks[item]++;
+      });
+      GAME.assembly = [];
+      soundClick();
+      renderAssembly();
+      updateHUD();
+      addDevLog(`${getDevLogTimestamp()} — Montagem descartada: ingredientes devolvidos ao estoque`);
+      showFeedback('↺', 'Montagem descartada. Ingredientes devolvidos ao estoque.', 'default');
+    }
+
+    // Recipe Matching Helper with All Unlocked Recipes
+    function identifyBrewedRecipe(items) {
+      const counts = {};
+      items.forEach(i => counts[i] = (counts[i] || 0) + 1);
+
+      const recipes = getUnlockedRecipes();
+      for (const r of recipes) {
+        if (r.ingredients.length !== items.length) continue;
+        const reqCounts = {};
+        r.ingredients.forEach(i => reqCounts[i] = (reqCounts[i] || 0) + 1);
+        let match = true;
+        for (const k in reqCounts) {
+          if (counts[k] !== reqCounts[k]) { match = false; break; }
+        }
+        for (const k in counts) {
+          if (counts[k] !== reqCounts[k]) { match = false; break; }
+        }
+        if (match) return r;
+      }
+      return null;
+    }
+
+    // Serve Button Logic: brews for 2s (ajuste), then delivers automatically to the most impatient compatible order
+    function handleServeClick() {
+      if (GAME.isBrewing || GAME.assembly.length === 0) return;
+
+      const preparedRecipe = identifyBrewedRecipe(GAME.assembly);
+      if (!preparedRecipe) {
+        soundError();
+        if (GAME.isTutorial) {
+          showFeedback('⚠️', 'Quase! Tente de novo', 'default');
+        } else {
+          showFeedback('⚠️', 'Combinação de ingredientes não forma uma receita válida!', 'error');
+          addDevLog(`${getDevLogTimestamp()} — Montagem inválida na cafeteira (descarte ou ajuste)`);
+        }
+        return;
+      }
+
+      // Start Brewing: 2 seconds (ajustado de 3s para 2s; 1.5s no tutorial)
+      const brewDuration = GAME.isTutorial ? 1500 : 2000;
+      GAME.isBrewing = true;
+      elMachineStatusText.textContent = `Preparando ${preparedRecipe.name}...`;
+      updateHUD();
+
+      const startTime = Date.now();
+      GAME.brewInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const pct = Math.min(100, (elapsed / brewDuration) * 100);
+        elBrewProgressBar.style.width = `${pct}%`;
+
+        if (elapsed >= brewDuration) {
+          clearInterval(GAME.brewInterval);
+          finishBrewAndDeliver(preparedRecipe);
+        }
+      }, 50);
+    }
+
+    function finishBrewAndDeliver(preparedRecipe) {
+      GAME.isBrewing = false;
+      elBrewProgressBar.style.width = '0%';
+      elMachineStatusText.textContent = 'Pronta';
+
+      // Clear assembly tray
+      GAME.assembly = [];
+      renderAssembly();
+
+      // Deliver drink according to priority rules
+      deliverDrinkDirect(preparedRecipe, false);
+    }
+
+    // Delivery independent of customer order / selection:
+    // 1) Finds all compatible orders (counter + tables)
+    // 2) Prioritizes the one with LEAST remaining patience
+    // 3) If no compatible order exists, stores drink in ready tray (max 3 slots)
+    function deliverDrinkDirect(preparedRecipe, isPreppedInstant = false) {
+      const candidates = [];
+
+      // Check counter orders
+      GAME.counterOrders.forEach(ord => {
+        if (ord.recipe.id === preparedRecipe.id) {
+          candidates.push({ type: 'counter', order: ord, patience: ord.patience });
+        }
+      });
+
+      // Check tables
+      GAME.tables.forEach(tbl => {
+        if (tbl.order && tbl.order.recipe.id === preparedRecipe.id) {
+          candidates.push({ type: 'table', order: tbl.order, tableRef: tbl, patience: tbl.order.patience });
+        }
+      });
+
+      // If at least one matching order exists, attend the most impatient!
+      if (candidates.length > 0) {
+        candidates.sort((a, b) => a.patience - b.patience);
+        const best = candidates[0];
+
+        if (best.type === 'counter') {
+          deliverToCounterOrder(best.order, preparedRecipe, isPreppedInstant);
+        } else {
+          deliverToTable(best.tableRef, preparedRecipe, isPreppedInstant);
+        }
+        return;
+      }
+
+      // If no matching customer exists -> goes to ready tray (capacidade aumentada para 3)
+      if (GAME.preppedDrinks.length < 3) {
+        GAME.preppedDrinks.push(preparedRecipe);
+        soundPour();
+        const aviso = GAME.preppedDrinks.length === 3 ? ' — Atenção: Bandeja cheia!' : '';
+        showFeedback('📥', `Nenhum pedido de ${preparedRecipe.name}. Guardado na bandeja (${GAME.preppedDrinks.length}/3)${aviso}`, 'default', 3000);
+        addDevLog(`${getDevLogTimestamp()} — ${preparedRecipe.name} pronto sem pedido compatível: guardado na bandeja de prontos (${GAME.preppedDrinks.length}/3)`);
+        updateHUD();
+      } else {
+        soundError();
+        showFeedback('⚠️', `Bandeja de prontos cheia (3/3) e sem pedido de ${preparedRecipe.name}! Descartado.`, 'error', 3000);
+        addDevLog(`${getDevLogTimestamp()} — Descarte: bandeja cheia (3/3) — pare de produzir! Descartado ${preparedRecipe.name}`);
+        updateHUD();
+      }
+    }
+
+    function deliverToTable(tableEntry, preparedRecipe, isPreppedInstant) {
+      const ord = tableEntry.order;
+      const basePay = ord.recipe.price;
+      const tipRatio = Math.max(0, ord.patience / ord.totalPatience);
+      // Gorjeta mínima garantida de R$ 1: max(4 * paciência, 1)
+      let tip = isPreppedInstant ? 4 : Math.max(1, Math.round(4 * tipRatio));
+
+      if (GAME.isRushActive) {
+        tip = tip * 2;
+        GAME.rushServedCount += 1;
+      }
+
+      const totalEarned = basePay + tip;
+      GAME.money += totalEarned;
+      GAME.moneyEarnedToday += totalEarned;
+      GAME.reputation = Math.min(100, GAME.reputation + 2);
+      GAME.servedToday += 1;
+      RUN_DATA.totalServed += 1;
+      RUN_DATA.totalTips += tip;
+
+      if (preparedRecipe.id === 'black') {
+        RUN_DATA.blackCoffeesTotalServed += 1;
+      }
+
+      GAME.dayCustomerTotal += 1;
+      GAME.dayPatienceSumRatio += tipRatio;
+
+      const prepTimeSec = Math.max(0.5, (Date.now() - (ord.spawnTimestamp || Date.now())) / 1000);
+      RUN_DATA.prepTimes.push(prepTimeSec);
+
+      // Clear the table
+      tableEntry.order = null;
+
+      soundSuccess();
+      addRecentResult({
+        icon: preparedRecipe.icon,
+        status: 'ok',
+        text: 'OK!',
+        value: `+R$ ${totalEarned}`,
+        name: ord.name
+      });
+
+      showFeedback('✨', `Entrega na Mesa ${tableEntry.id}! ${ord.name} recebeu ${preparedRecipe.name}. R$ ${basePay} + gorjeta R$ ${tip} (mín. R$1) = R$ ${totalEarned}`, 'success', 3500);
+      addDevLog(`${getDevLogTimestamp()} — ${preparedRecipe.name} entregue na Mesa ${tableEntry.id} para ${ord.name}: R$ ${basePay} + gorjeta R$ ${tip} [fórmula: max(4×${(tipRatio).toFixed(2)}, 1)] = R$ ${totalEarned} (+2 rep)`);
+
+      checkAchievements();
+      updateHUD();
+      renderTables();
+    }
+
+    function deliverToCounterOrder(customerOrder, preparedRecipe, isPreppedInstant) {
+      const basePay = customerOrder.recipe.price;
+      const tipRatio = Math.max(0, customerOrder.patience / customerOrder.totalPatience);
+      // Gorjeta mínima garantida de R$ 1: max(4 * paciência, 1)
+      let tip = isPreppedInstant ? 4 : Math.max(1, Math.round(4 * tipRatio));
+
+      if (GAME.isRushActive) {
+        tip = tip * 2;
+        GAME.rushServedCount += 1;
+      }
+
+      const totalEarned = basePay + tip;
+      GAME.money += totalEarned;
+      GAME.moneyEarnedToday += totalEarned;
+      GAME.reputation = Math.min(100, GAME.reputation + 2);
+      GAME.servedToday += 1;
+      RUN_DATA.totalServed += 1;
+      RUN_DATA.totalTips += tip;
+
+      if (preparedRecipe.id === 'black') {
+        RUN_DATA.blackCoffeesTotalServed += 1;
+      }
+
+      GAME.dayCustomerTotal += 1;
+      GAME.dayPatienceSumRatio += tipRatio;
+
+      const prepTimeSec = Math.max(0.5, (Date.now() - (customerOrder.spawnTimestamp || Date.now())) / 1000);
+      RUN_DATA.prepTimes.push(prepTimeSec);
+
+      // Remove from counter
+      const idx = GAME.counterOrders.findIndex(o => o.id === customerOrder.id);
+      if (idx !== -1) GAME.counterOrders.splice(idx, 1);
+      if (GAME.selectedOrderId === customerOrder.id) GAME.selectedOrderId = null;
+
+      soundSuccess();
+      addRecentResult({
+        icon: preparedRecipe.icon,
+        status: 'ok',
+        text: 'OK!',
+        value: `+R$ ${totalEarned}`,
+        name: customerOrder.name
+      });
+
+      const rushNotice = GAME.isRushActive ? ' [🔥 GORJETA 2X!]' : '';
+      showFeedback('✨', `Perfeito! ${customerOrder.name} recebeu ${customerOrder.recipe.name}.${rushNotice} R$ ${basePay} + gorjeta R$ ${tip} (mín. R$1) = R$ ${totalEarned}`, 'success', 3200);
+      addDevLog(`${getDevLogTimestamp()} — ${preparedRecipe.name} entregue para ${customerOrder.name}: R$ ${basePay} + gorjeta R$ ${tip}${rushNotice} [fórmula: max(4×${(tipRatio).toFixed(2)}, 1)] = R$ ${totalEarned} (+2 rep)`);
+
+      checkAchievements();
+
+      if (GAME.isTutorial) {
+        GAME.tutorialCustomersLeft--;
+        if (GAME.tutorialCustomersLeft <= 0) {
+          setTimeout(endDay, 1000);
+          return;
+        }
+      }
+
+      updateHUD();
+      renderCounterOrders();
+
+      if (GAME.isTutorial && GAME.counterOrders.length === 0) {
+        setTimeout(spawnCustomer, 700);
+      }
+    }
+
+    // Day Cycle Management
+    function startDay(dayNumber) {
+      GAME.day = dayNumber;
+      GAME.dayStartTime = Date.now();
+      RUN_DATA.dayReached = Math.max(RUN_DATA.dayReached, dayNumber);
+      GAME.isTutorial = (dayNumber === 1);
+      GAME.tutorialCustomersLeft = GAME.isTutorial ? 3 : 0;
+      GAME.dayDuration = 60;
+      GAME.dayTimer = GAME.dayDuration;
+      GAME.isDayRunning = true;
+      GAME.servedToday = 0;
+      GAME.lostToday = 0;
+      GAME.moneyEarnedToday = 0;
+      GAME.assembly = [];
+
+      updateIngredientAvailability();
+
+      // Clear counter & tables for fresh start
+      GAME.counterOrders = [];
+      GAME.selectedOrderId = null;
+      GAME.tables.forEach(t => t.order = null);
+
+      // Reset daily stats
+      GAME.dayCustomerTotal = 0;
+      GAME.dayPatienceSumRatio = 0;
+
+      // Reset Rush state for the day
+      GAME.isRushActive = false;
+      GAME.rushAnnounced = false;
+      GAME.rushEndedNotice = false;
+      GAME.rushServedCount = 0;
+      GAME.rushLostCount = 0;
+      document.body.className = '';
+      elRushBadgePill.style.display = 'none';
+
+      renderAssembly();
+      renderRecentResults();
+      renderCounterOrders();
+      renderTables();
+      updateHUD();
+      elModalEndDay.classList.remove('open');
+      elModalPrepDay.classList.remove('open');
+
+      // Customer patience ticker runs constantly during day
+      if (GAME.customerInterval) clearInterval(GAME.customerInterval);
+      GAME.customerInterval = setInterval(onCustomerTick, 100);
+
+      addDevLog(`=== DIA ${GAME.day} ===`, true);
+      addDevLog(`${getDevLogTimestamp()} — Início do Dia ${GAME.day}`);
+
+      if (GAME.isTutorial) {
+        showFeedback('🎓', 'Dia 1: Tutorial guiado! Atenda 3 clientes passo a passo.', 'default', 4500);
+      } else {
+        showFeedback('☀️', `Dia ${GAME.day} aberto! Bom atendimento no balcão e mesas!`, 'default');
+
+        if (GAME.dayInterval) clearInterval(GAME.dayInterval);
+        GAME.dayInterval = setInterval(onDayTick, 1000);
+
+        scheduleNextSpawn();
+      }
+
+      spawnCustomer();
+    }
+
+    // Tick executed every second of regular days
+    function onDayTick() {
+      GAME.dayTimer--;
+      elHudTimer.textContent = `${GAME.dayTimer}s`;
+
+      // ==========================================
+      // 2) HORA DO RUSH (A partir do Dia 4, dos 20s aos 40s decorridos -> dayTimer de 40s a 20s)
+      // ==========================================
+      if (GAME.day >= 4) {
+        // Anúncio 5 segundos antes: aos 15s decorridos (dayTimer == 45)
+        if (GAME.dayTimer === 45 && !GAME.rushAnnounced) {
+          GAME.rushAnnounced = true;
+          document.body.classList.add('rush-warning');
+          showRushAlertBanner('⏰ Atenção: Hora do Rush em 5 segundos!', 'incoming');
+          addDevLog(`${getDevLogTimestamp()} — Aviso: Hora do Rush começa em 5 segundos!`);
+        }
+
+        // Início da Hora do Rush: dos 20s decorridos aos 40s decorridos (dayTimer 40 até 20)
+        if (GAME.dayTimer <= 40 && GAME.dayTimer >= 20 && !GAME.isRushActive) {
+          GAME.isRushActive = true;
+          document.body.classList.remove('rush-warning');
+          document.body.classList.add('rush-active');
+          elRushBadgePill.style.display = 'inline-flex';
+          showRushAlertBanner('🔥 HORA DO RUSH! Paciência rápida & Gorjeta 2x!', 'incoming');
+          addDevLog(`${getDevLogTimestamp()} — Hora do Rush iniciada (paciência 12s, gorjeta 2x)`);
+
+          // During rush, cap counter orders patience to rush level
+          GAME.counterOrders.forEach(o => {
+            if (o.patience > 12) {
+              o.patience = 12;
+              o.totalPatience = 12;
+            }
+          });
+          renderCounterOrders();
+        }
+
+        // Término da Hora do Rush: aos 40s decorridos (dayTimer < 20)
+        if (GAME.dayTimer < 20 && GAME.isRushActive) {
+          GAME.isRushActive = false;
+          GAME.rushEndedNotice = true;
+          document.body.classList.remove('rush-active');
+          elRushBadgePill.style.display = 'none';
+          showRushAlertBanner('✅ Rush terminou! O ritmo voltou ao normal.', 'ended');
+          addDevLog(`${getDevLogTimestamp()} — Fim da Hora do Rush (${GAME.rushServedCount} clientes atendidos no rush)`);
+          RUN_DATA.rushesSurvived += 1;
+        }
+      }
+
+      if (GAME.dayTimer <= 0) {
+        endDay();
+      }
+    }
+
+    function showRushAlertBanner(text, type) {
+      const banner = document.createElement('div');
+      banner.className = `rush-alert-banner ${type === 'incoming' ? 'rush-incoming-bg' : 'rush-ended-bg'}`;
+      banner.innerHTML = `<span>${text}</span>`;
+      document.body.appendChild(banner);
+
+      playTone(type === 'incoming' ? 493.88 : 659.25, 0.25, 'triangle');
+
+      setTimeout(() => {
+        banner.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+        banner.style.opacity = '0';
+        banner.style.transform = 'translate(-50%, -20px)';
+        setTimeout(() => banner.remove(), 400);
+      }, 3500);
+    }
+
+    function endDay() {
+      GAME.isDayRunning = false;
+      clearInterval(GAME.dayInterval);
+      clearTimeout(GAME.nextSpawnTimeout);
+      if (GAME.customerInterval) clearInterval(GAME.customerInterval);
+      if (GAME.brewInterval) clearInterval(GAME.brewInterval);
+
+      GAME.isBrewing = false;
+      elBrewProgressBar.style.width = '0%';
+      elMachineStatusText.textContent = 'Expediente Encerrado';
+
+      // Discard unfinished assembly
+      if (GAME.assembly.length > 0) {
+        discardAssembly();
+      }
+
+      // Check prepped drinks loss warning rule
+      if (GAME.preppedDrinks.length > 0) {
+        addDevLog(`01:00 — Descarte de fim de dia: ${GAME.preppedDrinks.length} bebida(s) pronta(s) não consumida(s) perderam os ingredientes`);
+        GAME.preppedDrinks = [];
+      }
+
+      // Clear remaining orders at counter & tables
+      GAME.counterOrders = [];
+      GAME.selectedOrderId = null;
+      GAME.tables.forEach(t => t.order = null);
+
+      renderCounterOrders();
+      renderTables();
+      updateHUD();
+
+      // Calculated end-of-day balance
+      const avgSat = GAME.dayCustomerTotal > 0
+        ? Math.round((GAME.dayPatienceSumRatio / GAME.dayCustomerTotal) * 100)
+        : 100;
+      addDevLog(`01:00 — Fim do Dia ${GAME.day}: lucro R$ ${GAME.moneyEarnedToday} | ${GAME.servedToday} atendidos | ${GAME.lostToday} perdidos | satisfação média ${avgSat}%`);
+
+      // Check daily satisfaction achievement
+      checkDailySatisfactionAchievement();
+
+      showSummaryModal();
+    }
+
+    function showSummaryModal() {
+      elSummaryServed.textContent = GAME.servedToday;
+      elSummaryLost.textContent = GAME.lostToday;
+      elSummaryMoney.textContent = `R$ ${GAME.money}`;
+      elSummaryRep.textContent = `★ ${GAME.reputation}/100`;
+
+      elModalActionArea.innerHTML = '';
+
+      // Check Game Over conditions: Dinheiro < 10 ou Reputação <= 0
+      const isGameOver = GAME.money < 10 || GAME.reputation <= 0;
+
+      if (isGameOver) {
+        let reason = '';
+        if (GAME.money < 10) reason = 'Saldo insuficiente para reabastecer a cafeteria (você precisa de pelo menos R$ 10 em caixa).';
+        if (GAME.reputation <= 0) reason = 'Sua reputação despencou a zero e a cafeteria perdeu seus fregueses!';
+
+        elModalTitle.textContent = '💀 Fim de Jogo (Game Over)';
+        elModalTitle.style.color = '#a31b1b';
+        elModalSubtitle.textContent = reason;
+
+        // Auto save run to history on game over
+        saveRunToHistory();
+
+        const btnViewReport = document.createElement('button');
+        btnViewReport.className = 'btn-serve';
+        btnViewReport.textContent = '📊 Ver Relatório Completo da Run';
+        btnViewReport.addEventListener('click', () => {
+          elModalEndDay.classList.remove('open');
+          openRunReportModal(true);
+        });
+        elModalActionArea.appendChild(btnViewReport);
+
+        const btnRestart = document.createElement('button');
+        btnRestart.className = 'btn-discard';
+        btnRestart.style.padding = '0.75rem';
+        btnRestart.style.fontWeight = '800';
+        btnRestart.textContent = '🔄 Reiniciar Playtest (Novo Jogo)';
+        btnRestart.addEventListener('click', restartGame);
+        elModalActionArea.appendChild(btnRestart);
+      } else {
+        const nextDay = GAME.day + 1;
+        elModalTitle.textContent = `📊 Balanço do Dia ${GAME.day}`;
+        elModalTitle.style.color = '#3b1909';
+        elModalSubtitle.textContent = 'Expediente encerrado! Prepare o estoque antes de abrir as portas.';
+
+        // Information notice about rush starting day 4
+        if (nextDay === 4) {
+          const rushNotice = document.createElement('div');
+          rushNotice.style.background = '#fff0e6';
+          rushNotice.style.border = '1px solid #f76707';
+          rushNotice.style.color = '#b03d07';
+          rushNotice.style.padding = '0.55rem';
+          rushNotice.style.borderRadius = '6px';
+          rushNotice.style.fontSize = '0.85rem';
+          rushNotice.style.fontWeight = 'bold';
+          rushNotice.textContent = '⏰ Prepare-se: a partir do Dia 4 haverá a "Hora do Rush" com clientes em rajada!';
+          elModalActionArea.appendChild(rushNotice);
+        }
+
+        const btnPrep = document.createElement('button');
+        btnPrep.className = 'btn-serve';
+        btnPrep.textContent = `🏪 Ir para Tela de Preparação (Dia ${nextDay})`;
+        btnPrep.addEventListener('click', () => {
+          elModalEndDay.classList.remove('open');
+          openPrepScreen(nextDay);
+        });
+        elModalActionArea.appendChild(btnPrep);
+      }
+
+      elModalEndDay.classList.add('open');
+    }
+
+    // Preparation Screen (Abertura da Loja)
+    function openPrepScreen(dayNumber) {
+      GAME.day = dayNumber;
+      elPrepDayNum.textContent = dayNumber;
+
+      // Random forecast
+      const forecasts = [
+        { text: 'Hoje o movimento está alto! Espere muitos clientes sequenciais.', type: 'high' },
+        { text: 'Dia tranquilo pela frente! Bom momento para caprichar nas gorjetas.', type: 'calm' },
+        { text: 'Movimento equilibrado na vizinhança.', type: 'normal' }
+      ];
+      const pickedForecast = forecasts[Math.floor(Math.random() * forecasts.length)];
+      GAME.dayForecast = pickedForecast.type;
+      elPrepForecastText.textContent = pickedForecast.text;
+
+      // Reset prep cart & prepped drinks
+      GAME.shopCart = { cafe: 0, leite: 0, chocolate: 0, gelo: 0 };
+      GAME.preppedDrinks = [];
+
+      renderPrepScreen();
+      elModalPrepDay.classList.add('open');
+    }
+
+    function renderPrepScreen() {
+      elPrepAvailableMoney.textContent = `Caixa: R$ ${GAME.money}`;
+
+      // Available ingredients based on unlocks
+      elShopItemsContainer.innerHTML = '';
+      const availableIngKeys = Object.keys(INGREDIENTS).filter(k => INGREDIENTS[k].unlocked);
+
+      let cartTotal = 0;
+      availableIngKeys.forEach(ingKey => {
+        const item = INGREDIENTS[ingKey];
+        const qtyInCart = GAME.shopCart[ingKey] || 0;
+        const subtotal = qtyInCart * item.price;
+        cartTotal += subtotal;
+
+        const row = document.createElement('div');
+        row.className = 'shop-item-row';
+        row.innerHTML = `
+          <div>
+            <strong>${item.icon} ${item.name}</strong>
+            <span style="font-size:0.75rem; color:#6b4632; margin-left:0.35rem;">R$ ${item.price}/un | Atual: ${GAME.stocks[ingKey]}</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <button class="stepper-btn btn-dec" data-ing="${ingKey}" ${qtyInCart === 0 ? 'disabled' : ''}>-</button>
+            <span style="min-width:20px; text-align:center; font-weight:700;">+${qtyInCart}</span>
+            <button class="stepper-btn btn-inc" data-ing="${ingKey}">+</button>
+          </div>
+        `;
+        elShopItemsContainer.appendChild(row);
+      });
+
+      elShopCartTotal.textContent = `R$ ${cartTotal}`;
+
+      // Stepper events
+      elShopItemsContainer.querySelectorAll('.btn-inc').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const ingKey = e.currentTarget.getAttribute('data-ing');
+          const cost = INGREDIENTS[ingKey].price;
+          const currentTotal = getCartTotal();
+          if (currentTotal + cost <= GAME.money) {
+            GAME.shopCart[ingKey] = (GAME.shopCart[ingKey] || 0) + 1;
+            renderPrepScreen();
+          } else {
+            showFeedback('⚠️', 'Saldo insuficiente no caixa para mais itens!', 'error');
+          }
+        });
+      });
+
+      elShopItemsContainer.querySelectorAll('.btn-dec').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const ingKey = e.currentTarget.getAttribute('data-ing');
+          if (GAME.shopCart[ingKey] > 0) {
+            GAME.shopCart[ingKey]--;
+            renderPrepScreen();
+          }
+        });
+      });
+
+      // Populate Prep-ahead Recipe Select
+      elSelectPrepRecipe.innerHTML = '';
+      const unlocked = getUnlockedRecipes();
+      unlocked.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = `${r.icon} ${r.name} (${r.hint})`;
+        elSelectPrepRecipe.appendChild(opt);
+      });
+
+      // Prepped drinks UI
+      elPrepAheadCounter.textContent = `${GAME.preppedDrinks.length}/3 preparadas`;
+      elPrepAheadList.innerHTML = '';
+      if (GAME.preppedDrinks.length === 0) {
+        elPrepAheadList.innerHTML = '<span style="font-size:0.75rem; color:#8d6f5a; font-style:italic;">Nenhuma bebida pré-montada ainda.</span>';
+      } else {
+        GAME.preppedDrinks.forEach((drink, idx) => {
+          const chip = document.createElement('span');
+          chip.className = 'ingredient-chip';
+          chip.style.borderColor = '#c0743b';
+          chip.innerHTML = `${drink.icon} ${drink.name} <button data-idx="${idx}" style="background:none; border:none; cursor:pointer; color:#912c14; font-weight:bold; margin-left:4px;">✕</button>`;
+          chip.querySelector('button').addEventListener('click', (ev) => {
+            const i = parseInt(ev.target.getAttribute('data-idx'));
+            // Return ingredients to stock
+            const removed = GAME.preppedDrinks.splice(i, 1)[0];
+            removed.ingredients.forEach(k => GAME.stocks[k]++);
+            renderPrepScreen();
+          });
+          elPrepAheadList.appendChild(chip);
+        });
+      }
+
+      elBtnPrepAheadAdd.disabled = GAME.preppedDrinks.length >= 3;
+    }
+
+    function getCartTotal() {
+      let sum = 0;
+      for (const k in GAME.shopCart) {
+        sum += (GAME.shopCart[k] || 0) * INGREDIENTS[k].price;
+      }
+      return sum;
+    }
+
+    // Prep-ahead click (checks stock + cart combined)
+    function handlePrepAheadAdd() {
+      if (GAME.preppedDrinks.length >= 3) return;
+      const recipeId = elSelectPrepRecipe.value;
+      const recipe = Object.values(RECIPES).find(r => r.id === recipeId);
+      if (!recipe) return;
+
+      const needed = {};
+      recipe.ingredients.forEach(i => needed[i] = (needed[i] || 0) + 1);
+
+      for (const k in needed) {
+        const available = (GAME.stocks[k] || 0) + (GAME.shopCart[k] || 0);
+        if (available < needed[k]) {
+          showFeedback('⚠️', `Estoque insuficiente de ${INGREDIENTS[k].name}! Adicione mais no estoque acima.`, 'error');
+          return;
+        }
+      }
+
+      // Deduct from shopCart first if bought, otherwise from existing stocks
+      recipe.ingredients.forEach(k => {
+        if ((GAME.shopCart[k] || 0) > 0) {
+          GAME.shopCart[k]--;
+        } else {
+          GAME.stocks[k]--;
+        }
+      });
+
+      GAME.preppedDrinks.push(recipe);
+      soundPour();
+      renderPrepScreen();
+    }
+
+    function handleConfirmOpenShop() {
+      const cartTotal = getCartTotal();
+      if (cartTotal > GAME.money) {
+        showFeedback('⚠️', 'Saldo insuficiente para a compra de ingredientes!', 'error');
+        return;
+      }
+
+      // Apply purchases
+      GAME.money -= cartTotal;
+      for (const k in GAME.shopCart) {
+        GAME.stocks[k] = (GAME.stocks[k] || 0) + GAME.shopCart[k];
+      }
+
+      elModalPrepDay.classList.remove('open');
+      startDay(GAME.day);
+    }
+
+    // Cookbook & Achievements Tabs
+    function openCookbook(initialTab = 'recipes') {
+      switchCookbookTab(initialTab);
+      renderCookbookRecipes();
+      renderAchievementsList();
+      elModalCookbook.classList.add('open');
+    }
+
+    function switchCookbookTab(tab) {
+      if (tab === 'recipes') {
+        elTabBtnRecipes.classList.add('active');
+        elTabBtnAchievements.classList.remove('active');
+        elTabContentRecipes.style.display = 'block';
+        elTabContentAchievements.style.display = 'none';
+      } else {
+        elTabBtnRecipes.classList.remove('active');
+        elTabBtnAchievements.classList.add('active');
+        elTabContentRecipes.style.display = 'none';
+        elTabContentAchievements.style.display = 'block';
+      }
+    }
+
+    function renderCookbookRecipes() {
+      elCookbookList.innerHTML = '';
+      const allRecipes = Object.values(RECIPES);
+
+      allRecipes.forEach(r => {
+        const availableNow = isRecipeAvailable(r);
+        const unlockedWaitingNextDay = r.unlocked && r.availableFromDay && GAME.day < r.availableFromDay;
+
+        const card = document.createElement('div');
+        card.style.borderRadius = '8px';
+        card.style.padding = '0.65rem 0.85rem';
+
+        if (availableNow) {
+          card.style.background = '#fff9f2';
+          card.style.border = '1.5px solid #dcbfa5';
+          card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="color:#4a2310; font-size:0.95rem;">${r.icon} ${r.name}</strong>
+              <span style="font-weight:800; color:#18732c; font-size:0.9rem;">R$ ${r.price}</span>
+            </div>
+            <div style="font-size:0.8rem; color:#684632; margin-top:0.3rem;">
+              <strong>Ingredientes:</strong> ${r.ingredients.map(k => `${INGREDIENTS[k].icon} ${INGREDIENTS[k].name}`).join(' + ')}
+            </div>
+          `;
+        } else if (unlockedWaitingNextDay) {
+          card.style.background = '#fffdf7';
+          card.style.border = '1.5px solid #e08b31';
+          card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="color:#4a2310; font-size:0.95rem;">${r.icon} ${r.name}</strong>
+              <span style="font-size:0.72rem; background:#ffe8cc; color:#b04a08; padding:2px 8px; border-radius:999px; font-weight:800;">Disponível a partir do Dia ${r.availableFromDay}</span>
+            </div>
+            <div style="font-size:0.8rem; color:#684632; margin-top:0.3rem;">
+              <strong>Ingredientes:</strong> ${r.ingredients.map(k => `${INGREDIENTS[k].icon} ${INGREDIENTS[k].name}`).join(' + ')}
+            </div>
+            <div style="font-size:0.75rem; color:#a14c13; margin-top:0.25rem; font-weight:700;">
+              ✨ Conquista concluída! Clientes poderão pedir esta receita a partir de amanhã.
+            </div>
+          `;
+        } else {
+          card.style.background = '#f5f0ea';
+          card.style.border = '1px dashed #c5b4a4';
+          card.style.opacity = '0.7';
+          card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="color:#776255; font-weight:700;">🔒 ${r.name} (Bloqueada)</span>
+              <span style="font-size:0.75rem; background:#e6dad0; color:#5c473b; padding:2px 6px; border-radius:4px; font-weight:bold;">Conquista</span>
+            </div>
+            <div style="font-size:0.75rem; color:#887265; margin-top:0.25rem;">
+              Desbloqueie na aba <strong>Conquistas</strong>.
+            </div>
+          `;
+        }
+        elCookbookList.appendChild(card);
+      });
+    }
+
+    function renderAchievementsList() {
+      elAchievementsList.innerHTML = '';
+      const achArray = Object.values(ACHIEVEMENTS);
+      const unlockedCount = achArray.filter(a => a.unlocked).length;
+      elUnlockedAchCount.textContent = `${unlockedCount}/${achArray.length}`;
+
+      achArray.forEach(ach => {
+        const recipe = RECIPES[ach.recipeId];
+        const card = document.createElement('div');
+        card.style.background = ach.unlocked ? '#f4faf5' : '#f5f1eb';
+        card.style.border = ach.unlocked ? '1.5px solid #7bc691' : '1px solid #d3c4b5';
+        card.style.borderRadius = '8px';
+        card.style.padding = '0.65rem 0.85rem';
+
+        const statusBadge = ach.unlocked
+          ? '<span style="font-size:0.72rem; background:#2b8a3e; color:#fff; padding:2px 7px; border-radius:999px; font-weight:800;">DESBLOQUEADO</span>'
+          : '<span style="font-size:0.72rem; background:#868e96; color:#fff; padding:2px 7px; border-radius:999px; font-weight:800;">BLOQUEADO</span>';
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+            <strong style="color:${ach.unlocked ? '#1b5e20' : '#495057'}; font-size:0.92rem;">
+              ${ach.unlocked ? '🏆' : '🔒'} ${ach.title} → ${recipe.name}
+            </strong>
+            ${statusBadge}
+          </div>
+          <div style="font-size:0.8rem; color:${ach.unlocked ? '#2e7d32' : '#6c757d'}; margin-bottom:0.35rem;">
+            ${ach.desc}
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; font-weight:700; color:${ach.unlocked ? '#155724' : '#495057'};">
+            <span>Progresso:</span>
+            <span>${ach.getProgressText()}</span>
+          </div>
+        `;
+        elAchievementsList.appendChild(card);
+      });
+    }
+
+    // ==========================================
+    // 4) RUN REPORT & LOCALSTORAGE EVIDENCE
+    // ==========================================
+    const STORAGE_KEY = 'cafe_aurora_runs';
+
+    function getRunsHistory() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveRunToHistory() {
+      const history = getRunsHistory();
+      const avgPrep = RUN_DATA.prepTimes.length > 0
+        ? (RUN_DATA.prepTimes.reduce((a, b) => a + b, 0) / RUN_DATA.prepTimes.length).toFixed(1)
+        : '0.0';
+
+      // Find favorite recipe
+      let favName = 'Café Preto';
+      let maxCount = -1;
+      for (const id in RUN_DATA.recipeOrdersCount) {
+        if (RUN_DATA.recipeOrdersCount[id] > maxCount) {
+          maxCount = RUN_DATA.recipeOrdersCount[id];
+          favName = RECIPES[id]?.name || id;
+        }
+      }
+
+      const runEntry = {
+        date: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        day: RUN_DATA.dayReached,
+        money: GAME.money,
+        rep: GAME.reputation,
+        served: RUN_DATA.totalServed,
+        lost: RUN_DATA.totalLost,
+        wrong: RUN_DATA.wrongOrders,
+        tips: RUN_DATA.totalTips,
+        rushes: RUN_DATA.rushesSurvived,
+        avgPrep: avgPrep,
+        favRecipe: `${favName} (${Math.max(0, maxCount)}x)`
+      };
+
+      // Keep up to 10 latest runs
+      history.unshift(runEntry);
+      if (history.length > 10) history.pop();
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+      } catch (e) {}
+
+      return runEntry;
+    }
+
+    function openRunReportModal(isGameOver = false) {
+      const avgPrep = RUN_DATA.prepTimes.length > 0
+        ? (RUN_DATA.prepTimes.reduce((a, b) => a + b, 0) / RUN_DATA.prepTimes.length).toFixed(1)
+        : '0.0';
+
+      // Calculate favorite recipe
+      let favName = 'Café Preto';
+      let maxCount = 0;
+      for (const id in RUN_DATA.recipeOrdersCount) {
+        if (RUN_DATA.recipeOrdersCount[id] > maxCount) {
+          maxCount = RUN_DATA.recipeOrdersCount[id];
+          favName = RECIPES[id]?.name || id;
+        }
+      }
+
+      elRepDay.textContent = `Dia ${RUN_DATA.dayReached}`;
+      elRepMoneyRep.textContent = `R$ ${GAME.money} | ★ ${GAME.reputation}`;
+      elRepServedLost.textContent = `${RUN_DATA.totalServed} / ${RUN_DATA.totalLost}`;
+      elRepTips.textContent = `R$ ${RUN_DATA.totalTips}`;
+      elRepRushes.textContent = `${RUN_DATA.rushesSurvived}`;
+      elRepAvgTime.textContent = `${avgPrep}s`;
+      elRepFavRecipe.textContent = `${favName} (${maxCount}x)`;
+      elRepWrongOrders.textContent = `${RUN_DATA.wrongOrders}`;
+
+      renderRunsHistoryTable();
+
+      elReportActionFooter.style.display = isGameOver ? 'block' : 'none';
+      elModalRunReport.classList.add('open');
+    }
+
+    function renderRunsHistoryTable() {
+      const history = getRunsHistory();
+      elRunsHistoryTbody.innerHTML = '';
+
+      if (history.length === 0) {
+        elRunsHistoryTbody.innerHTML = '<tr><td colspan="7" style="color:#888; font-style:italic;">Nenhuma run gravada ainda.</td></tr>';
+        return;
+      }
+
+      history.forEach((run, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>#${idx + 1} (${run.date})</td>
+          <td>Dia ${run.day}</td>
+          <td style="font-weight:700; color:#18732c;">R$ ${run.money}</td>
+          <td style="font-weight:700;">★ ${run.rep}</td>
+          <td>${run.served}</td>
+          <td>${run.lost}</td>
+          <td>${run.rushes}</td>
+        `;
+        elRunsHistoryTbody.appendChild(tr);
+      });
+    }
+
+    function copyReportToClipboard() {
+      const avgPrep = RUN_DATA.prepTimes.length > 0
+        ? (RUN_DATA.prepTimes.reduce((a, b) => a + b, 0) / RUN_DATA.prepTimes.length).toFixed(1)
+        : '0.0';
+
+      let favName = 'Café Preto';
+      let maxCount = 0;
+      for (const id in RUN_DATA.recipeOrdersCount) {
+        if (RUN_DATA.recipeOrdersCount[id] > maxCount) {
+          maxCount = RUN_DATA.recipeOrdersCount[id];
+          favName = RECIPES[id]?.name || id;
+        }
+      }
+
+      const reportText = `☕ [CAFÉ AURORA — RELATÓRIO DE PLAYTEST]
+• Dia alcançado: Dia ${RUN_DATA.dayReached}
+• Dinheiro final: R$ ${GAME.money}
+• Reputação final: ★ ${GAME.reputation}/100
+• Clientes atendidos: ${RUN_DATA.totalServed}
+• Clientes perdidos: ${RUN_DATA.totalLost}
+• Pedidos incorretos: ${RUN_DATA.wrongOrders}
+• Gorjetas totais: R$ ${RUN_DATA.totalTips}
+• Rushes sobrevividos: ${RUN_DATA.rushesSurvived}
+• Receita mais pedida: ${favName} (${maxCount}x)
+• Tempo médio de preparo: ${avgPrep}s
+• Conquistas: Mocha [${ACHIEVEMENTS.mocha.unlocked ? '✓' : '✗'}], Choc Quente [${ACHIEVEMENTS.hot_choco.unlocked ? '✓' : '✗'}], Café Gelado [${ACHIEVEMENTS.iced_coffee.unlocked ? '✓' : '✗'}]`;
+
+      navigator.clipboard.writeText(reportText).then(() => {
+        elCopyReportText.textContent = '✅ Copiado com sucesso!';
+        setTimeout(() => {
+          elCopyReportText.textContent = 'Copiar Relatório (Para Colar no Chat)';
+        }, 2500);
+      }).catch(() => {
+        // Fallback for older browsers
+        const ta = document.createElement('textarea');
+        ta.value = reportText;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        elCopyReportText.textContent = '✅ Copiado com sucesso!';
+        setTimeout(() => {
+          elCopyReportText.textContent = 'Copiar Relatório (Para Colar no Chat)';
+        }, 2500);
+      });
+    }
+
+    function restartGame() {
+      GAME.day = 1;
+      GAME.dayStartTime = Date.now();
+      GAME.money = 30;
+      GAME.reputation = 50;
+      GAME.stocks = { cafe: 6, leite: 4, chocolate: 0, gelo: 0 };
+      GAME.assembly = [];
+      GAME.preppedDrinks = [];
+      GAME.counterOrders = [];
+      GAME.selectedOrderId = null;
+      GAME.tables.forEach(t => t.order = null);
+      GAME.recentResults = [];
+      GAME.devLog = [];
+      renderDevLog();
+
+      // Reset run data
+      RUN_DATA.dayReached = 1;
+      RUN_DATA.totalServed = 0;
+      RUN_DATA.totalLost = 0;
+      RUN_DATA.wrongOrders = 0;
+      RUN_DATA.totalTips = 0;
+      RUN_DATA.rushesSurvived = 0;
+      RUN_DATA.recipeOrdersCount = { black: 0, latte: 0, mocha: 0, hot_choco: 0, iced_coffee: 0 };
+      RUN_DATA.prepTimes = [];
+      RUN_DATA.blackCoffeesTotalServed = 0;
+
+      // Keep basic unlocked; lock special for new run
+      RECIPES.mocha.unlocked = false;
+      RECIPES.mocha.availableFromDay = null;
+      RECIPES.hot_choco.unlocked = false;
+      RECIPES.hot_choco.availableFromDay = null;
+      RECIPES.iced_coffee.unlocked = false;
+      RECIPES.iced_coffee.availableFromDay = null;
+
+      ACHIEVEMENTS.mocha.unlocked = false;
+      ACHIEVEMENTS.hot_choco.unlocked = false;
+      ACHIEVEMENTS.iced_coffee.unlocked = false;
+      INGREDIENTS.chocolate.unlocked = false;
+      INGREDIENTS.gelo.unlocked = false;
+
+      elModalRunReport.classList.remove('open');
+      elModalEndDay.classList.remove('open');
+      renderRecentResults();
+      startDay(1);
+    }
+
+    function skipTutorial() {
+      GAME.isTutorial = false;
+      clearTimeout(GAME.nextSpawnTimeout);
+      if (GAME.customerInterval) clearInterval(GAME.customerInterval);
+      if (GAME.brewInterval) clearInterval(GAME.brewInterval);
+      if (GAME.dayInterval) clearInterval(GAME.dayInterval);
+      GAME.counterOrders = [];
+      GAME.selectedOrderId = null;
+      GAME.tables.forEach(t => t.order = null);
+      GAME.isBrewing = false;
+      GAME.assembly = [];
+      elBrewProgressBar.style.width = '0%';
+      elMachineStatusText.textContent = 'Pronta';
+      showFeedback('⏩', 'Tutorial pulado! Abrindo preparação do Dia 2...', 'default');
+      logEvent('Tutorial pulado pelo jogador.');
+      elModalEndDay.classList.remove('open');
+      openPrepScreen(2);
+    }
+
+    // Event Listeners initialization
+    document.addEventListener('DOMContentLoaded', () => {
+      elBtnAddCoffee.addEventListener('click', () => addIngredient('cafe'));
+      elBtnAddMilk.addEventListener('click', () => addIngredient('leite'));
+      elBtnAddChoco.addEventListener('click', () => addIngredient('chocolate'));
+      elBtnAddIce.addEventListener('click', () => addIngredient('gelo'));
+
+      elBtnDiscard.addEventListener('click', discardAssembly);
+      elBtnServe.addEventListener('click', handleServeClick);
+
+      elBtnSkipTutorial.addEventListener('click', skipTutorial);
+
+      // 1) Attach Tutorial Tooltips for Day 1
+      ['btn-add-coffee', 'btn-add-milk', 'btn-discard', 'btn-serve', 'btn-open-cookbook', 'btn-skip-tutorial'].forEach(id => {
+        attachTutorialTooltip(id);
+      });
+
+      // Prep modal buttons
+      elBtnPrepAheadAdd.addEventListener('click', handlePrepAheadAdd);
+      elBtnConfirmOpenShop.addEventListener('click', handleConfirmOpenShop);
+
+      // Cookbook & Achievements
+      elBtnOpenCookbook.addEventListener('click', () => openCookbook('recipes'));
+      elBtnCloseCookbook.addEventListener('click', () => elModalCookbook.classList.remove('open'));
+      elTabBtnRecipes.addEventListener('click', () => switchCookbookTab('recipes'));
+      elTabBtnAchievements.addEventListener('click', () => switchCookbookTab('achievements'));
+
+      // DevLog Drawer Toggle (abre e fecha sem pausar o jogo)
+      const elDrawerDevLog = document.getElementById('drawer-devlog');
+      const elBtnOpenDevLog = document.getElementById('btn-open-devlog');
+      const elBtnCloseDevLog = document.getElementById('btn-close-devlog');
+      const elBtnCopyDevLog = document.getElementById('btn-copy-devlog');
+
+      elBtnOpenDevLog.addEventListener('click', () => {
+        elDrawerDevLog.classList.toggle('open');
+        renderDevLog();
+      });
+      elBtnCloseDevLog.addEventListener('click', () => {
+        elDrawerDevLog.classList.remove('open');
+      });
+      elBtnCopyDevLog.addEventListener('click', copyDevLogToClipboard);
+
+      // Run Report
+      elBtnOpenReport.addEventListener('click', () => openRunReportModal(false));
+      elBtnCloseReport.addEventListener('click', () => elModalRunReport.classList.remove('open'));
+      elBtnCopyReport.addEventListener('click', copyReportToClipboard);
+      elBtnReportRestart.addEventListener('click', restartGame);
+
+      // Start the first day immediately (Day 1 = tutorial)
+      startDay(1);
+    });
+  </script>
+<script>
+/* Skip artifact shell — fixed helpers served beside every artifact. */
+(function () {
+  "use strict";
+
+  var fmt = {
+    num: function (v, opts) { return new Intl.NumberFormat("pt-BR", opts || {}).format(v); },
+    brl: function (v) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v); },
+    pct: function (v) { return new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 1 }).format(v); }
+  };
+
+  // axisFmt keeps axis tick labels short (compact notation) so long values
+  // (e.g. full BRL amounts) never clip against the plot edge.
+  function axisFmt(v) {
+    return fmt.num(v, { notation: "compact", maximumFractionDigits: 1 });
+  }
+
+  // format accepts a function OR one of the fmt names ("num" | "brl" | "pct").
+  function coerceFormat(spec) {
+    if (typeof spec === "function") return spec;
+    if (typeof spec === "string" && fmt[spec]) return fmt[spec];
+    return function (v) { return fmt.num(v); };
+  }
+
+  function accent() {
+    return getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#2563eb";
+  }
+  function mutedColor() {
+    return getComputedStyle(document.documentElement).getPropertyValue("--text-muted").trim() || "#5b6472";
+  }
+  function svgEl(tag, attrs) {
+    var el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (var k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+  function frame(el, w, h) {
+    var svg = svgEl("svg", { viewBox: "0 0 " + w + " " + h, role: "img" });
+    el.innerHTML = "";
+    el.appendChild(svg);
+    return svg;
+  }
+
+  // maxOf guards the axis scale: empty values would give -Infinity (truthy,
+  // so "|| 1" can't catch it) and a non-positive max would flip the chart.
+  function maxOf(values) {
+    var m = values.length ? Math.max.apply(null, values) : 0;
+    return m > 0 ? m : 1;
+  }
+
+  // bar(el, {labels:[], values:[], color?, format?}) — vertical bar chart.
+  function bar(el, cfg) {
+    var W = 640, H = 280, padL = 46, padB = 30, padT = 12;
+    var svg = frame(el, W, H);
+    var max = maxOf(cfg.values);
+    var n = cfg.values.length;
+    var plotW = W - padL - 12, plotH = H - padT - padB;
+    var step = plotW / n, bw = Math.min(step * 0.62, 64);
+    var color = cfg.color || accent();
+    var f = coerceFormat(cfg.format);
+    for (var g = 0; g <= 4; g++) {
+      var gy = padT + plotH - (plotH * g) / 4;
+      svg.appendChild(svgEl("line", { x1: padL, y1: gy, x2: W - 12, y2: gy, stroke: "currentColor", "stroke-opacity": 0.08 }));
+      var lbl = svgEl("text", { x: padL - 8, y: gy + 4, "text-anchor": "end", "font-size": 10, fill: mutedColor() });
+      lbl.textContent = axisFmt((max * g) / 4);
+      svg.appendChild(lbl);
+    }
+    cfg.values.forEach(function (v, i) {
+      var bh = Math.max(0, (v / max) * plotH);
+      var x = padL + i * step + (step - bw) / 2;
+      var y = padT + plotH - bh;
+      var r = svgEl("rect", { x: x, y: y, width: bw, height: bh, rx: 4, fill: color });
+      var t = svgEl("title", {});
+      t.textContent = cfg.labels[i] + ": " + f(v);
+      r.appendChild(t);
+      svg.appendChild(r);
+      var tx = svgEl("text", { x: x + bw / 2, y: H - 10, "text-anchor": "middle", "font-size": 11, fill: mutedColor() });
+      tx.textContent = cfg.labels[i];
+      svg.appendChild(tx);
+    });
+  }
+
+  // line(el, {labels:[], values:[], color?, format?}) — single-series line.
+  function line(el, cfg) {
+    var W = 640, H = 280, padL = 46, padB = 30, padT = 12;
+    var svg = frame(el, W, H);
+    var max = maxOf(cfg.values);
+    var n = cfg.values.length;
+    var plotW = W - padL - 16, plotH = H - padT - padB;
+    var color = cfg.color || accent();
+    var f = coerceFormat(cfg.format);
+    for (var g = 0; g <= 4; g++) {
+      var gy = padT + plotH - (plotH * g) / 4;
+      svg.appendChild(svgEl("line", { x1: padL, y1: gy, x2: W - 16, y2: gy, stroke: "currentColor", "stroke-opacity": 0.08 }));
+      var lbl = svgEl("text", { x: padL - 8, y: gy + 4, "text-anchor": "end", "font-size": 10, fill: mutedColor() });
+      lbl.textContent = axisFmt((max * g) / 4);
+      svg.appendChild(lbl);
+    }
+    var pts = cfg.values.map(function (v, i) {
+      var x = padL + (n === 1 ? plotW / 2 : (plotW * i) / (n - 1));
+      var y = padT + plotH - (v / max) * plotH;
+      return [x, y];
+    });
+    var d = pts.map(function (p, i) { return (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1); }).join(" ");
+    svg.appendChild(svgEl("path", { d: d, fill: "none", stroke: color, "stroke-width": 2, "stroke-linejoin": "round" }));
+    pts.forEach(function (p, i) {
+      var c = svgEl("circle", { cx: p[0], cy: p[1], r: 3.5, fill: color });
+      var t = svgEl("title", {});
+      t.textContent = cfg.labels[i] + ": " + f(cfg.values[i]);
+      c.appendChild(t);
+      svg.appendChild(c);
+      var tx = svgEl("text", { x: p[0], y: H - 10, "text-anchor": "middle", "font-size": 11, fill: mutedColor() });
+      tx.textContent = cfg.labels[i];
+      svg.appendChild(tx);
+    });
+  }
+
+  // donut(el, {labels:[], values:[], colors?}) — donut with center total.
+  function donut(el, cfg) {
+    var W = 320, H = 280, cx = W / 2, cy = H / 2, R = 92, r = 58;
+    var svg = frame(el, W, H);
+    var total = cfg.values.reduce(function (a, b) { return a + b; }, 0) || 1;
+    var palette = cfg.colors || [accent(), "#1baf7a", "#eda100", "#e34948", "#4a3aa7", "#e87ba4"];
+    var a0 = -Math.PI / 2;
+    cfg.values.forEach(function (v, i) {
+      var a1 = a0 + (v / total) * Math.PI * 2;
+      var large = a1 - a0 > Math.PI ? 1 : 0;
+      var p = ["M", cx + R * Math.cos(a0), cy + R * Math.sin(a0),
+        "A", R, R, 0, large, 1, cx + R * Math.cos(a1), cy + R * Math.sin(a1),
+        "L", cx + r * Math.cos(a1), cy + r * Math.sin(a1),
+        "A", r, r, 0, large, 0, cx + r * Math.cos(a0), cy + r * Math.sin(a0), "Z"].join(" ");
+      var path = svgEl("path", { d: p, fill: palette[i % palette.length] });
+      var t = svgEl("title", {});
+      t.textContent = cfg.labels[i] + ": " + fmt.num(v) + " (" + fmt.pct(v / total) + ")";
+      path.appendChild(t);
+      svg.appendChild(path);
+      a0 = a1;
+    });
+    var center = svgEl("text", { x: cx, y: cy + 5, "text-anchor": "middle", "font-size": 20, "font-weight": 650, fill: "currentColor" });
+    center.textContent = fmt.num(total);
+    svg.appendChild(center);
+  }
+
+  window.skipShell = { fmt: fmt };
+  window.skipChart = { bar: bar, line: line, donut: donut };
+})();
+
+</script>
+</body>
+</html>
