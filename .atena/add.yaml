@@ -1,0 +1,62 @@
+add_version: "0.2"
+
+project:
+  id: "PRJ-cafe-aurora"
+  name: "Café Aurora"
+
+adoption:
+  distribution: "0.5.0"
+  source_repo: "https://github.com/guimariz/atena-driven-development"
+  source_commit: "21a9a2c353dae2a33cb44220ce4a3d6f4daf553b"
+  manifest_hash: "72c988994c6b96db2725dfbd5ce7bbf4e0f054b659071913e9691c63ad3c1c89"
+  applied: "2026-11-07"
+  note: "Arquivos da metodologia instalados pelo CLI. Este bloco identifica o projeto; não promove canon."
+
+interaction:
+  default_mode: "direct"
+  atena:
+    trigger: "explicit-address"
+    mode: "guided"
+  direct_execution:
+    allow_without_spec: true
+    reconciliation: "propose-after-change"
+
+specification:
+  require_zero_blocking_gaps: true
+  allow_explicit_defer: true
+  recommend_defaults: true
+
+bootstrap:
+  tooling_checks:
+    rtk:
+      enabled: true
+      required: false
+      ask_if_missing: true
+      ask_once: true
+      status: "unknown"
+
+policies:
+  remote_context: "scoped-remote-context"
+  draft_writing: "allowed"
+  publishing: "explicit-approval"
+  dependencies: "allowlist-with-plan"
+
+autonomy:
+  profile: "guarded-autopilot"
+  approval_selection: "required-per-plan"
+  report_mode: "step-updates-and-final"
+  max_retries: 3
+
+git:
+  local_commits: "automatic-on-run-branch"
+  direct_local_commits: "project-policy"
+  merge: "explicit-approval"
+  publish: "explicit-approval"
+
+skills:
+  record_opportunity_after_repetitions: 2
+  propose_after_repetitions: 3
+
+graph:
+  mode: "derived"
+  output: "generated/graph.production.json"
